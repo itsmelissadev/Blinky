@@ -1,81 +1,61 @@
 package main
 
 import (
-	"context"
-	"flag"
-	"fmt"
-	"os"
-	"os/signal"
-	"syscall"
-	"time"
-
-	"blinky/internal"
 	"blinky/internal/api/admin"
-	"blinky/internal/api/admin/collections"
-	"blinky/internal/api/admin/system"
 	"blinky/internal/api/admin/settings"
+	"blinky/internal/api/admin/system"
 	"blinky/internal/api/public"
 	"blinky/internal/config"
 	"blinky/internal/database"
 	"blinky/internal/pkg/logger"
-	"blinky/internal/pkg/worker"
-
-	"golang.org/x/sync/errgroup"
+	"blinky/internal/pkg/ssh"
+	"context"
+	"fmt"
+	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	"golang.org/x/sync/errgroup"
 )
 
 type Engine struct {
-	Config  *config.Config
-	DB      *pgxpool.Pool
-	Workers *worker.Manager
+	Config *config.Config
+	DB     *pgxpool.Pool
 }
 
 func main() {
-	debug := flag.Bool("debug", false, "Enable debug logging")
-	flag.Parse()
-
-	logger.Init(*debug)
-	logger.Info("[ENGINE] %s %s (Code: %d) starting...", internal.AppName, internal.AppVersionName, internal.AppVersionCode)
-
 	cfg := config.LoadConfig()
 
-	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	defer cancel()
+	logger.Info("[ENGINE] Blinky v1.0.0-alpha (Code: 1) starting...")
 
-	var dbPool *pgxpool.Pool
-	if cfg.IsEnvExist {
-		var err error
-		dbPool, err = database.Connect(ctx, cfg)
-		if err != nil {
-			logger.Error("[ENGINE] Fatal: Database connection failed: %v", err)
-			os.Exit(1)
-		}
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
 
-		if err := database.Migrate(ctx, dbPool, cfg, settings.CreateBackup); err != nil {
-			logger.Error("[ENGINE] Fatal: Database migration failed: %v", err)
-			os.Exit(1)
-		}
-
-		if err := collections.InitSystemCollections(ctx, dbPool); err != nil {
-			logger.Error("[ENGINE] Fatal: System collections initialization failed: %v", err)
-			os.Exit(1)
-		}
-	} else {
-		logger.Warn("[ENGINE] No .env found. Starting in Setup Mode...")
-	}
-
-	engine := &Engine{
-		Config:  cfg,
-		DB:      dbPool,
-		Workers: worker.NewManager(),
-	}
-
-	if err := engine.Run(ctx); err != nil {
-		logger.Error("[ENGINE] Failure: %v", err)
+	db, err := database.Connect(ctx, cfg)
+	if err != nil {
+		logger.Error("[ENGINE] Failed to connect to database: %v", err)
 		os.Exit(1)
 	}
 
+	if err := database.Migrate(ctx, db, cfg, settings.CreateBackup); err != nil {
+		logger.Error("[ENGINE] Database migration failed: %v", err)
+		os.Exit(1)
+	}
+
+	e := &Engine{
+		Config: cfg,
+		DB:     db,
+	}
+
+	if err := e.Run(ctx); err != nil {
+		logger.Error("[ENGINE] Runtime error: %v", err)
+		os.Exit(1)
+	}
+
+	logger.Warn("[ENGINE] Termination signal received. Initiating graceful shutdown...")
+	e.DB.Close()
+	logger.Info("[ENGINE] Database connection pool closed")
 	logger.Info("[ENGINE] Blinky has exited gracefully")
 }
 
@@ -84,6 +64,17 @@ func (e *Engine) Run(ctx context.Context) error {
 	adminApp := admin.NewAdminApp(e.DB, e.Config)
 
 	system.SetPublicApp(publicApp)
+
+	if e.Config.AdminSSHEnabled {
+		e.Config.AdminPanelHost = "127.0.0.1"
+	}
+	if e.Config.PublicSSHEnabled {
+		e.Config.PublicAPIHost = "127.0.0.1"
+	}
+
+	if e.Config.AdminSSHEnabled || e.Config.PublicSSHEnabled {
+		go ssh.StartSSHServer(e.Config)
+	}
 
 	g, ctx := errgroup.WithContext(ctx)
 
@@ -105,34 +96,12 @@ func (e *Engine) Run(ctx context.Context) error {
 		return nil
 	})
 
-	e.Workers.Start(ctx)
-
-	logger.Success("[ENGINE] All services are active and healthy")
-
 	g.Go(func() error {
 		<-ctx.Done()
-		logger.Warn("[ENGINE] Termination signal received. Initiating graceful shutdown...")
-
-		shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancel()
-
-		var shutdownErr error
-		if err := adminApp.ShutdownWithContext(shutdownCtx); err != nil {
-			logger.Error("[ENGINE] Admin API shutdown failed: %v", err)
-			shutdownErr = err
-		}
-		if err := publicApp.ShutdownWithContext(shutdownCtx); err != nil {
-			logger.Error("[ENGINE] Public API shutdown failed: %v", err)
-			shutdownErr = err
-		}
-
-		e.Workers.Wait()
-		if e.DB != nil {
-			e.DB.Close()
-			logger.Info("[ENGINE] Database connection pool closed")
-		}
-
-		return shutdownErr
+		logger.Warn("[ENGINE] Stopping services...")
+		_ = adminApp.Shutdown()
+		_ = publicApp.Shutdown()
+		return nil
 	})
 
 	return g.Wait()

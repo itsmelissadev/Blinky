@@ -2,6 +2,7 @@ package settings
 
 import (
 	"blinky/internal/api"
+	"blinky/internal/config"
 	"blinky/internal/pkg/logger"
 	"blinky/internal/pkg/postgresql"
 	"context"
@@ -108,7 +109,7 @@ func (h *backupHandler) updatePostgresConfig(c *fiber.Ctx) error {
 		"POSTGRESQL_DATA_PATH":   body.PostgresDataPath,
 	}
 
-	if err := updateEnvVariables(updates); err != nil {
+	if err := config.UpdateEnvVariables(updates); err != nil {
 		logger.Error("[SETTINGS/POSTGRES] Failed to update env variables: %v", err)
 		return api.SendError(c, api.ErrEnvUpdateFailed)
 	}

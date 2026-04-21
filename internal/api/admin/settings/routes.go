@@ -36,6 +36,7 @@ func RegisterRoutes(router fiber.Router, db *pgxpool.Pool, cfg *config.Config) {
 	s := router.Group("/settings/server")
 	s.Get("/", h.getServerConfig)
 	s.Patch("/", h.updateServerConfig)
+	s.Post("/ssh/test", h.testSSHConfig)
 }
 
 type backupHandler struct {

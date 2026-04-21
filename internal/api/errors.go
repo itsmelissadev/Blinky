@@ -74,4 +74,5 @@ var (
 	ErrEnvMissingKey        = ApiError{Number: 5002, Code: "ENV_MISSING_KEY", Message: "Key is required"}
 	ErrEnvDeleteFailed      = ApiError{Number: 5003, Code: "ENV_DELETE_FAILED", Message: "Failed to delete environment variables"}
 	ErrPostgresConfNotFound = ApiError{Number: 5004, Code: "POSTGRES_CONF_NOT_FOUND", Message: "postgresql.conf not found in the specified root path"}
+	ErrServerPortInUse      = ApiError{Number: 6000, Code: "SERVER_PORT_IN_USE", Message: "Specified port is already in use or restricted"}
 )

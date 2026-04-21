@@ -4,9 +4,10 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, Save, RefreshCw, Server, AlertTriangle, ShieldCheck, AlertCircle } from "lucide-react";
+import { Loader2, Save, RefreshCw, Server, AlertTriangle, ShieldCheck, AlertCircle, Lock, Shield } from "lucide-react";
 import { toast } from "sonner";
 import { fetchAPI } from "@/lib/api-client";
+import { Switch } from "@/components/ui/switch";
 import { PageLoader } from "@/components/global/widget/loader";
 
 export default function ServerSettingsPage() {
@@ -14,12 +15,18 @@ export default function ServerSettingsPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [isRestarting, setIsRestarting] = useState(false);
   const [countdown, setCountdown] = useState(5);
+  const [isSshVerified, setIsSshVerified] = useState(false);
 
   const [config, setConfig] = useState({
     publicApiHost: "",
     publicApiPort: "",
     adminPanelHost: "",
     adminPanelPort: "",
+    adminSshEnabled: false,
+    publicSshEnabled: false,
+    sshPort: "",
+    sshUser: "",
+    sshPassword: "",
   });
 
   useEffect(() => {
@@ -28,6 +35,9 @@ export default function ServerSettingsPage() {
         const res = await fetchAPI("/settings/server");
         if (res.success) {
           setConfig(res.data);
+          if (res.data.sshPort && res.data.sshUser && res.data.sshPassword) {
+            setIsSshVerified(true);
+          }
         }
       } catch (error) {
         toast.error("Failed to load server configuration");
@@ -49,9 +59,15 @@ export default function ServerSettingsPage() {
   }, [isRestarting, countdown]);
 
   const handleSave = async () => {
-    if (!config.publicApiHost || !config.publicApiPort || !config.adminPanelHost || !config.adminPanelPort) {
+    const missingFields = [];
+    if (!config.adminSshEnabled && !config.adminPanelHost) missingFields.push("Admin Panel Host");
+    if (!config.publicSshEnabled && !config.publicApiHost) missingFields.push("Public API Host");
+    if (!config.adminPanelPort) missingFields.push("Admin Panel Port");
+    if (!config.publicApiPort) missingFields.push("Public API Port");
+
+    if (missingFields.length > 0) {
       toast.error("Required Fields Missing", {
-        description: "All host and port fields are mandatory.",
+        description: `Please fill: ${missingFields.join(", ")}`,
       });
       return;
     }
@@ -97,7 +113,8 @@ export default function ServerSettingsPage() {
         <div className="text-center space-y-2 mb-8">
           <h2 className="text-2xl font-bold tracking-tight">Engine Restarting</h2>
           <p className="text-muted-foreground max-w-sm mx-auto">
-            Please wait while Blinky applies your custom server configurations and refreshes the system network bindings.
+            Please wait while Blinky applies your custom server configurations and refreshes the system network
+            bindings.
           </p>
         </div>
         <div className="flex items-center gap-2 px-4 py-2 bg-muted rounded-full border">
@@ -110,14 +127,25 @@ export default function ServerSettingsPage() {
     );
   }
 
-  const renderHostWarning = (host: string, isAdmin: boolean) => {
+  const renderHostWarning = (host: string, isAdmin: boolean, isSsh?: boolean) => {
     if (!host) return null;
+
+    if (isSsh) {
+      return (
+        <div className="flex items-center gap-2 mt-2 text-emerald-500 bg-emerald-500/10 px-2 py-1.5 rounded-md border border-emerald-500/20 w-fit">
+          <ShieldCheck className="h-4 w-4 shrink-0" />
+          <span className="text-xs font-bold leading-none tracking-tight">SAFE: Secured via SSH Tunneling</span>
+        </div>
+      );
+    }
 
     if (host === "0.0.0.0") {
       return (
         <div className="flex items-center gap-2 mt-2 text-destructive bg-destructive/10 px-2 py-1.5 rounded-md border border-destructive/20 w-fit">
           <AlertTriangle className="h-4 w-4 shrink-0" />
-          <span className="text-xs font-semibold">CRITICAL: {isAdmin ? "Admin panel" : "This API"} is exposed to everyone on the network.</span>
+          <span className="text-xs font-semibold">
+            CRITICAL: {isAdmin ? "Admin panel" : "This API"} is exposed to everyone on the network.
+          </span>
         </div>
       );
     } else if (host === "localhost" || host === "127.0.0.1") {
@@ -147,7 +175,8 @@ export default function ServerSettingsPage() {
           <h1 className="text-2xl font-bold tracking-tight">Server Configuration</h1>
         </div>
         <p className="text-sm text-muted-foreground mt-2">
-          Manage your system's network bindings for the Public API and Admin operations. Saving changes will restart the engine.
+          Manage your system's network bindings for the Public API and Admin operations. Saving changes will restart the
+          engine.
         </p>
       </div>
 
@@ -160,22 +189,51 @@ export default function ServerSettingsPage() {
           <div className="p-6 grid grid-cols-1 sm:grid-cols-2 gap-6">
             <div className="space-y-3">
               <div className="space-y-1">
-                <Label htmlFor="adminPanelHost" className="text-sm font-semibold">Admin Panel Host</Label>
+                <Label htmlFor="adminPanelHost" className="text-sm font-semibold">
+                  Admin Panel Host
+                </Label>
                 <p className="text-xs text-muted-foreground">Hostname or IP for admin operations.</p>
               </div>
               <Input
                 id="adminPanelHost"
-                value={config.adminPanelHost}
+                value={config.adminSshEnabled ? "127.0.0.1" : config.adminPanelHost}
                 required
+                disabled={config.adminSshEnabled}
                 onChange={(e) => setConfig({ ...config, adminPanelHost: e.target.value })}
                 placeholder="localhost"
-                className="font-mono text-sm"
+                className="font-mono text-sm shadow-sm"
               />
-              {renderHostWarning(config.adminPanelHost, true)}
+              <div
+                className={`mt-3 flex items-center justify-between px-3 py-2.5 rounded-md border transition-all duration-300 ${!isSshVerified ? "opacity-30 grayscale pointer-events-none" : "bg-muted/20 border-border/50 shadow-sm"}`}
+              >
+                <div className="flex items-center gap-2.5">
+                  <Shield
+                    className={`h-4 w-4 ${config.adminSshEnabled ? "text-emerald-500" : "text-muted-foreground/60"}`}
+                  />
+                  <Label htmlFor="adminSsh" className="text-sm font-medium cursor-pointer text-foreground/80">
+                    Use SSH Tunnel
+                  </Label>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Switch
+                    id="adminSsh"
+                    checked={config.adminSshEnabled}
+                    disabled={!isSshVerified}
+                    onCheckedChange={(val) => setConfig({ ...config, adminSshEnabled: val })}
+                  />
+                </div>
+              </div>
+              {renderHostWarning(
+                config.adminSshEnabled ? "127.0.0.1" : config.adminPanelHost,
+                true,
+                config.adminSshEnabled,
+              )}
             </div>
             <div className="space-y-3">
               <div className="space-y-1">
-                <Label htmlFor="adminPanelPort" className="text-sm font-semibold">Admin Panel Port</Label>
+                <Label htmlFor="adminPanelPort" className="text-sm font-semibold">
+                  Admin Panel Port
+                </Label>
                 <p className="text-xs text-muted-foreground">Network port for the admin backend.</p>
               </div>
               <Input
@@ -198,22 +256,51 @@ export default function ServerSettingsPage() {
           <div className="p-6 grid grid-cols-1 sm:grid-cols-2 gap-6">
             <div className="space-y-3">
               <div className="space-y-1">
-                <Label htmlFor="publicApiHost" className="text-sm font-semibold">Public API Host</Label>
+                <Label htmlFor="publicApiHost" className="text-sm font-semibold">
+                  Public API Host
+                </Label>
                 <p className="text-xs text-muted-foreground">Hostname or IP for public API endpoints.</p>
               </div>
               <Input
                 id="publicApiHost"
-                value={config.publicApiHost}
+                value={config.publicSshEnabled ? "127.0.0.1" : config.publicApiHost}
                 required
+                disabled={config.publicSshEnabled}
                 onChange={(e) => setConfig({ ...config, publicApiHost: e.target.value })}
                 placeholder="localhost"
-                className="font-mono text-sm"
+                className="font-mono text-sm shadow-sm"
               />
-              {renderHostWarning(config.publicApiHost, false)}
+              <div
+                className={`mt-3 flex items-center justify-between px-3 py-2.5 rounded-md border transition-all duration-300 ${!isSshVerified ? "opacity-30 grayscale pointer-events-none" : "bg-muted/20 border-border/50 shadow-sm"}`}
+              >
+                <div className="flex items-center gap-2.5">
+                  <Shield
+                    className={`h-4 w-4 ${config.publicSshEnabled ? "text-emerald-500" : "text-muted-foreground/60"}`}
+                  />
+                  <Label htmlFor="publicSsh" className="text-sm font-medium cursor-pointer text-foreground/80">
+                    Use SSH Tunnel
+                  </Label>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Switch
+                    id="publicSsh"
+                    checked={config.publicSshEnabled}
+                    disabled={!isSshVerified}
+                    onCheckedChange={(val) => setConfig({ ...config, publicSshEnabled: val })}
+                  />
+                </div>
+              </div>
+              {renderHostWarning(
+                config.publicSshEnabled ? "127.0.0.1" : config.publicApiHost,
+                false,
+                config.publicSshEnabled,
+              )}
             </div>
             <div className="space-y-3">
               <div className="space-y-1">
-                <Label htmlFor="publicApiPort" className="text-sm font-semibold">Public API Port</Label>
+                <Label htmlFor="publicApiPort" className="text-sm font-semibold">
+                  Public API Port
+                </Label>
                 <p className="text-xs text-muted-foreground">Network port serving public data.</p>
               </div>
               <Input
@@ -228,8 +315,135 @@ export default function ServerSettingsPage() {
           </div>
         </div>
 
+        <div className="bg-card border rounded-lg overflow-hidden shadow-sm">
+          <div className="p-4 bg-muted/50 border-b flex items-center gap-2">
+            <div
+              className={`h-2 w-2 rounded-full ${config.adminSshEnabled || config.publicSshEnabled ? "bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.6)]" : "bg-muted-foreground/30"}`}
+            />
+            <h3 className="font-semibold text-sm tracking-wide">SSH Configuration & Gateway</h3>
+          </div>
+          <div className="p-6 grid grid-cols-1 sm:grid-cols-2 gap-6 transition-all duration-300">
+            <div className="space-y-3">
+              <div className="space-y-1">
+                <Label htmlFor="sshPort" className="text-sm font-semibold">
+                  SSH Port
+                </Label>
+                <p className="text-xs text-muted-foreground">Secure port for tunnel access.</p>
+              </div>
+              <Input
+                id="sshPort"
+                value={config.sshPort}
+                onChange={(e) => setConfig({ ...config, sshPort: e.target.value })}
+                placeholder="2222"
+                className="font-mono text-sm"
+              />
+            </div>
+            <div className="space-y-3">
+              <div className="space-y-1">
+                <Label htmlFor="sshUser" className="text-sm font-semibold">
+                  SSH Username
+                </Label>
+                <p className="text-xs text-muted-foreground">System user for tunnel login.</p>
+              </div>
+              <Input
+                id="sshUser"
+                value={config.sshUser}
+                onChange={(e) => setConfig({ ...config, sshUser: e.target.value })}
+                placeholder="admin"
+                className="font-mono text-sm"
+              />
+            </div>
+            <div className="sm:col-span-2 space-y-4">
+              <div className="space-y-3">
+                <div className="space-y-1">
+                  <Label htmlFor="sshPass" className="text-sm font-semibold">
+                    SSH Password
+                  </Label>
+                  <p className="text-xs text-muted-foreground">Encryption key for the tunnel gateway.</p>
+                </div>
+                <Input
+                  id="sshPass"
+                  type="password"
+                  value={config.sshPassword}
+                  onChange={(e) => setConfig({ ...config, sshPassword: e.target.value })}
+                  placeholder="••••••••"
+                  className="font-mono text-sm"
+                />
+              </div>
+
+              <div className="flex flex-col gap-4 pt-2">
+                <Button
+                  variant={isSshVerified ? "outline" : "default"}
+                  size="sm"
+                  className="w-full sm:w-auto h-9"
+                  disabled={isSaving}
+                  onClick={async () => {
+                    if (isSshVerified) {
+                      setIsSshVerified(false);
+                      return;
+                    }
+
+                    if (config.sshPort && config.sshUser && config.sshPassword) {
+                      try {
+                        const res = await fetchAPI("/settings/server/ssh/test", {
+                          method: "POST",
+                          body: JSON.stringify({ sshPort: config.sshPort }),
+                        });
+
+                        if (res.success) {
+                          setIsSshVerified(true);
+                          toast.success("Connection Verified", {
+                            description: "Port is available and credentials are ready.",
+                          });
+                        } else {
+                          toast.error("Verification Failed", {
+                            description:
+                              typeof res.error === "string"
+                                ? res.error
+                                : res.error?.message || "Port might be in use or restricted.",
+                          });
+                        }
+                      } catch (err) {
+                        toast.error("Network error during verification");
+                      }
+                    } else {
+                      toast.error("Incomplete Credentials", {
+                        description: "Please fill SSH port, user, and password first.",
+                      });
+                    }
+                  }}
+                >
+                  {isSshVerified ? (
+                    <>
+                      <ShieldCheck className="mr-2 h-4 w-4 text-emerald-500" />
+                      Configuration Unlocked (Click to Modify)
+                    </>
+                  ) : (
+                    <>
+                      <Shield className="mr-2 h-4 w-4" />
+                      Verify & Unlock SSH Toggles
+                    </>
+                  )}
+                </Button>
+
+                {(config.adminSshEnabled || config.publicSshEnabled) && (
+                  <div className="p-3 bg-orange-500/10 border border-orange-500/20 rounded-md">
+                    <p className="text-sm text-orange-600 dark:text-orange-400 font-medium">
+                      * Security Alert: Services will only be accessible via the defined SSH tunnel.
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
         <div className="flex justify-end pt-4">
-          <Button onClick={handleSave} disabled={isSaving} size="lg" className="w-full sm:w-auto min-w-[200px] shadow-md hover:shadow-lg transition-all">
+          <Button
+            onClick={handleSave}
+            disabled={isSaving}
+            size="lg"
+            className="w-full sm:w-auto min-w-[200px] shadow-md hover:shadow-lg transition-all"
+          >
             {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
             Save & Restart Engine
           </Button>

@@ -18,7 +18,7 @@ import (
 )
 
 const (
-	BackupDir = "blinky_backups"
+	BackupDir = "system/backups"
 )
 
 type BackupInfo struct {
@@ -189,7 +189,7 @@ func (h *backupHandler) updateConfig(c *fiber.Ctx) error {
 
 	h.cfg.PostgresPath = body.PostgresPath
 
-	if err := updateEnvVariable("POSTGRESQL_FOLDER_PATH", "POSTGRESQL_FOLDER_PATH", body.PostgresPath); err != nil {
+	if err := updateEnvVariable("POSTGRESQL_FOLDER_PATH", body.PostgresPath); err != nil {
 		logger.Error("[SETTINGS/BACKUP] Failed to update .env: %v", err)
 		return api.SendError(c, api.ErrEnvUpdateFailed)
 	}

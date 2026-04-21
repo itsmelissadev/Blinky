@@ -3,18 +3,17 @@ package config
 import (
 	"fmt"
 	"os"
-	"strings"
 
 	"github.com/joho/godotenv"
 )
 
 type Config struct {
-	DBConnString     string
 	DBHost           string
 	DBPort           string
 	DBUser           string
 	DBPass           string
 	DBName           string
+	DBConnString     string
 	PublicAPIHost    string
 	PublicAPIPort    string
 	AdminPanelHost   string
@@ -22,6 +21,11 @@ type Config struct {
 	PostgresPath     string
 	PostgresDataPath string
 	IsEnvExist       bool
+	AdminSSHEnabled  bool
+	PublicSSHEnabled bool
+	SSHPort          string
+	SSHUser          string
+	SSHPassword      string
 }
 
 func LoadConfig() *Config {
@@ -30,51 +34,58 @@ func LoadConfig() *Config {
 		isEnvExist = false
 	}
 
-	if isEnvExist {
-		if err := godotenv.Load(); err != nil {
-			fmt.Printf("Warning: Could not load .env file: %v\n", err)
-		}
-	}
+	_ = godotenv.Load()
 
-	getEnv := func(key, defaultValue string) string {
-		if value := os.Getenv(key); value != "" {
-			return value
-		}
-		return defaultValue
-	}
-
-	dbHost := getEnv("POSTGRESQL_DB_HOST", "")
-	dbPort := getEnv("POSTGRESQL_DB_PORT", "")
-	dbUser := getEnv("POSTGRESQL_DB_USER", "")
-	dbPass := getEnv("POSTGRESQL_DB_PASSWORD", "")
-	dbName := getEnv("POSTGRESQL_DB_NAME", "")
-	postgresPath := getEnv("POSTGRESQL_FOLDER_PATH", "")
-	postgresDataPath := getEnv("POSTGRESQL_DATA_PATH", "")
+	dbHost := getEnv("DB_HOST", "localhost")
+	dbPort := getEnv("DB_PORT", "5432")
+	dbUser := getEnv("DB_USER", "postgres")
+	dbPass := getEnv("DB_PASS", "postgres")
+	dbName := getEnv("DB_NAME", "blinky_db")
 
 	return &Config{
-		DBHost: dbHost,
-		DBPort: dbPort,
-		DBUser: dbUser,
-		DBPass: dbPass,
-		DBName: dbName,
-		DBConnString: fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
-			dbUser, dbPass, dbHost, dbPort, dbName,
-		),
-		PublicAPIHost:    getEnv("PUBLIC_API_HOST", "localhost"),
+		DBHost:           dbHost,
+		DBPort:           dbPort,
+		DBUser:           dbUser,
+		DBPass:           dbPass,
+		DBName:           dbName,
+		DBConnString:     fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable", dbUser, dbPass, dbHost, dbPort, dbName),
+		PublicAPIHost:    getEnv("PUBLIC_API_HOST", "0.0.0.0"),
 		PublicAPIPort:    getEnv("PUBLIC_API_PORT", "8090"),
-		AdminPanelHost:   getEnv("ADMIN_PANEL_HOST", "localhost"),
+		AdminPanelHost:   getEnv("ADMIN_PANEL_HOST", "0.0.0.0"),
 		AdminPanelPort:   getEnv("ADMIN_PANEL_PORT", "8080"),
-		PostgresPath:     postgresPath,
-		PostgresDataPath: postgresDataPath,
+		PostgresPath:     getEnv("POSTGRESQL_FOLDER_PATH", ""),
+		PostgresDataPath: getEnv("POSTGRESQL_DATA_PATH", ""),
 		IsEnvExist:       isEnvExist,
+
+		AdminSSHEnabled:  getEnv("ADMIN_SSH_ENABLED", "false") == "true",
+		PublicSSHEnabled: getEnv("PUBLIC_SSH_ENABLED", "false") == "true",
+		SSHPort:          getEnv("SSH_PORT", ""),
+		SSHUser:          getEnv("SSH_USER", ""),
+		SSHPassword:      getEnv("SSH_PASS", ""),
 	}
 }
 
-func SaveEnv(data map[string]string) error {
-	var content strings.Builder
-	for k, v := range data {
-		content.WriteString(fmt.Sprintf("%s=%s\n", k, v))
+func UpdateEnvVariables(updates map[string]string) error {
+	env, _ := godotenv.Read()
+	if env == nil {
+		env = make(map[string]string)
 	}
 
-	return os.WriteFile(".env", []byte(content.String()), 0644)
+	for k, v := range updates {
+		env[k] = v
+		_ = os.Setenv(k, v)
+	}
+
+	return godotenv.Write(env, ".env")
+}
+
+func SaveEnv(data map[string]string) error {
+	return godotenv.Write(data, ".env")
+}
+
+func getEnv(key, fallback string) string {
+	if value, ok := os.LookupEnv(key); ok {
+		return value
+	}
+	return fallback
 }

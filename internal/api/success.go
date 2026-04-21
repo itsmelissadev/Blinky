@@ -41,4 +41,5 @@ var (
 
 	SuccessPublicOnline = SuccessMessage{Message: "Blinky Public API Online"}
 	SuccessAdminOnline  = SuccessMessage{Message: "Blinky Admin API Online"}
+	SuccessServerPortOK = SuccessMessage{Message: "Port is available and configuration is valid"}
 )

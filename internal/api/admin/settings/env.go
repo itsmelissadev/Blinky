@@ -119,7 +119,7 @@ func deleteEnvVariables(keys []string) error {
 	return os.WriteFile(".env", []byte(strings.Join(newLines, "\n")), 0644)
 }
 
-func updateEnvVariable(oldKey string, newKey string, value string) error {
+func updateEnvVariable(oldKey string, value string) error {
 	return updateEnvVariables(map[string]string{oldKey: value})
 }
 
