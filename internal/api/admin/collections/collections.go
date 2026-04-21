@@ -914,7 +914,7 @@ func PerformJoins(ctx context.Context, db *pgxpool.Pool, schema types.Collection
 			continue
 		}
 
-	targetFields := rows.FieldDescriptions()
+		targetFields := rows.FieldDescriptions()
 		targetRecordsMap := make(map[string]map[string]interface{})
 		for rows.Next() {
 			vals, _ := rows.Values()

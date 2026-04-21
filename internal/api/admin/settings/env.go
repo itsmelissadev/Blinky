@@ -57,7 +57,7 @@ func (h *backupHandler) updateEnv(c *fiber.Ctx) error {
 
 	updates := map[string]string{body.Key: body.Value}
 	if body.OldKey != "" && body.OldKey != body.Key {
-		updates[body.OldKey] = "" // Mark old key for deletion if needed or handle logic
+		updates[body.OldKey] = ""
 	}
 
 	if err := updateEnvVariables(updates); err != nil {
