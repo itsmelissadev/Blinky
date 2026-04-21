@@ -1,0 +1,240 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Loader2, Save, RefreshCw, Server, AlertTriangle, ShieldCheck, AlertCircle } from "lucide-react";
+import { toast } from "sonner";
+import { fetchAPI } from "@/lib/api-client";
+import { PageLoader } from "@/components/global/widget/loader";
+
+export default function ServerSettingsPage() {
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isRestarting, setIsRestarting] = useState(false);
+  const [countdown, setCountdown] = useState(5);
+
+  const [config, setConfig] = useState({
+    publicApiHost: "",
+    publicApiPort: "",
+    adminPanelHost: "",
+    adminPanelPort: "",
+  });
+
+  useEffect(() => {
+    const fetchConfig = async () => {
+      try {
+        const res = await fetchAPI("/settings/server");
+        if (res.success) {
+          setConfig(res.data);
+        }
+      } catch (error) {
+        toast.error("Failed to load server configuration");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchConfig();
+  }, []);
+
+  useEffect(() => {
+    let timer: any;
+    if (isRestarting && countdown > 0) {
+      timer = setTimeout(() => setCountdown(countdown - 1), 1000);
+    } else if (isRestarting && countdown === 0) {
+      window.location.reload();
+    }
+    return () => clearTimeout(timer);
+  }, [isRestarting, countdown]);
+
+  const handleSave = async () => {
+    if (!config.publicApiHost || !config.publicApiPort || !config.adminPanelHost || !config.adminPanelPort) {
+      toast.error("Required Fields Missing", {
+        description: "All host and port fields are mandatory.",
+      });
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      const res = await fetchAPI("/settings/server", {
+        method: "PATCH",
+        body: JSON.stringify(config),
+      });
+      if (res.success) {
+        toast.success("Settings saved! Initiating engine restart...");
+        try {
+          await fetchAPI("/system/engine/restart", { method: "POST" });
+          setIsRestarting(true);
+        } catch (e) {
+          setIsRestarting(true);
+        }
+      }
+    } catch (error) {
+      toast.error("An error occurred while saving settings");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <PageLoader
+        title="Loading Server Config"
+        description="Retrieving server and network parameters from the engine..."
+      />
+    );
+  }
+
+  if (isRestarting) {
+    return (
+      <div className="flex flex-col items-center justify-center py-32 animate-in fade-in zoom-in duration-500">
+        <div className="mb-8 relative">
+          <div className="absolute inset-0 bg-primary/20 rounded-full blur-xl animate-pulse" />
+          <RefreshCw className="relative h-12 w-12 text-primary animate-spin" />
+        </div>
+        <div className="text-center space-y-2 mb-8">
+          <h2 className="text-2xl font-bold tracking-tight">Engine Restarting</h2>
+          <p className="text-muted-foreground max-w-sm mx-auto">
+            Please wait while Blinky applies your custom server configurations and refreshes the system network bindings.
+          </p>
+        </div>
+        <div className="flex items-center gap-2 px-4 py-2 bg-muted rounded-full border">
+          <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Reconnecting in</span>
+          <div className="h-6 w-6 rounded-full bg-primary flex items-center justify-center text-[10px] font-bold text-primary-foreground">
+            {countdown}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const renderHostWarning = (host: string, isAdmin: boolean) => {
+    if (!host) return null;
+
+    if (host === "0.0.0.0") {
+      return (
+        <div className="flex items-center gap-2 mt-2 text-destructive bg-destructive/10 px-2 py-1.5 rounded-md border border-destructive/20 w-fit">
+          <AlertTriangle className="h-4 w-4 shrink-0" />
+          <span className="text-xs font-semibold">CRITICAL: {isAdmin ? "Admin panel" : "This API"} is exposed to everyone on the network.</span>
+        </div>
+      );
+    } else if (host === "localhost" || host === "127.0.0.1") {
+      return (
+        <div className="flex items-center gap-2 mt-2 text-emerald-500 bg-emerald-500/10 px-2 py-1.5 rounded-md border border-emerald-500/20 w-fit">
+          <ShieldCheck className="h-4 w-4 shrink-0" />
+          <span className="text-xs font-semibold">SAFE: Restricted to local machine only.</span>
+        </div>
+      );
+    }
+
+    return (
+      <div className="flex items-center gap-2 mt-2 text-amber-500 bg-amber-500/10 px-2 py-1.5 rounded-md border border-amber-500/20 w-fit">
+        <AlertCircle className="h-4 w-4 shrink-0" />
+        <span className="text-xs font-semibold">WARNING: Bound to a custom IP. Ensure firewall rules are applied.</span>
+      </div>
+    );
+  };
+
+  return (
+    <div className="flex flex-col gap-8 max-w-4xl animate-in fade-in slide-in-from-bottom-2 duration-500">
+      <div className="flex flex-col gap-1 border-b pb-6">
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-primary/10 rounded-lg">
+            <Server className="h-5 w-5 text-primary" />
+          </div>
+          <h1 className="text-2xl font-bold tracking-tight">Server Configuration</h1>
+        </div>
+        <p className="text-sm text-muted-foreground mt-2">
+          Manage your system's network bindings for the Public API and Admin operations. Saving changes will restart the engine.
+        </p>
+      </div>
+
+      <div className="grid gap-8">
+        <div className="bg-card border rounded-lg overflow-hidden shadow-sm">
+          <div className="p-4 bg-muted/50 border-b flex items-center gap-2">
+            <div className="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)]" />
+            <h3 className="font-semibold text-sm tracking-wide">Admin Panel Bindings</h3>
+          </div>
+          <div className="p-6 grid grid-cols-1 sm:grid-cols-2 gap-6">
+            <div className="space-y-3">
+              <div className="space-y-1">
+                <Label htmlFor="adminPanelHost" className="text-sm font-semibold">Admin Panel Host</Label>
+                <p className="text-xs text-muted-foreground">Hostname or IP for admin operations.</p>
+              </div>
+              <Input
+                id="adminPanelHost"
+                value={config.adminPanelHost}
+                required
+                onChange={(e) => setConfig({ ...config, adminPanelHost: e.target.value })}
+                placeholder="localhost"
+                className="font-mono text-sm"
+              />
+              {renderHostWarning(config.adminPanelHost, true)}
+            </div>
+            <div className="space-y-3">
+              <div className="space-y-1">
+                <Label htmlFor="adminPanelPort" className="text-sm font-semibold">Admin Panel Port</Label>
+                <p className="text-xs text-muted-foreground">Network port for the admin backend.</p>
+              </div>
+              <Input
+                id="adminPanelPort"
+                value={config.adminPanelPort}
+                required
+                onChange={(e) => setConfig({ ...config, adminPanelPort: e.target.value })}
+                placeholder="8080"
+                className="font-mono text-sm"
+              />
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-card border rounded-lg overflow-hidden shadow-sm">
+          <div className="p-4 bg-muted/50 border-b flex items-center gap-2">
+            <div className="h-2 w-2 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.6)]" />
+            <h3 className="font-semibold text-sm tracking-wide">Public API Bindings</h3>
+          </div>
+          <div className="p-6 grid grid-cols-1 sm:grid-cols-2 gap-6">
+            <div className="space-y-3">
+              <div className="space-y-1">
+                <Label htmlFor="publicApiHost" className="text-sm font-semibold">Public API Host</Label>
+                <p className="text-xs text-muted-foreground">Hostname or IP for public API endpoints.</p>
+              </div>
+              <Input
+                id="publicApiHost"
+                value={config.publicApiHost}
+                required
+                onChange={(e) => setConfig({ ...config, publicApiHost: e.target.value })}
+                placeholder="localhost"
+                className="font-mono text-sm"
+              />
+              {renderHostWarning(config.publicApiHost, false)}
+            </div>
+            <div className="space-y-3">
+              <div className="space-y-1">
+                <Label htmlFor="publicApiPort" className="text-sm font-semibold">Public API Port</Label>
+                <p className="text-xs text-muted-foreground">Network port serving public data.</p>
+              </div>
+              <Input
+                id="publicApiPort"
+                value={config.publicApiPort}
+                required
+                onChange={(e) => setConfig({ ...config, publicApiPort: e.target.value })}
+                placeholder="8090"
+                className="font-mono text-sm"
+              />
+            </div>
+          </div>
+        </div>
+
+        <div className="flex justify-end pt-4">
+          <Button onClick={handleSave} disabled={isSaving} size="lg" className="w-full sm:w-auto min-w-[200px] shadow-md hover:shadow-lg transition-all">
+            {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+            Save & Restart Engine
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
