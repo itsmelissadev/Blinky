@@ -7,6 +7,7 @@ import (
 
 	"blinky/internal/api"
 	"blinky/internal/database"
+	"blinky/internal/pkg/crypto"
 	"blinky/internal/pkg/logger"
 
 	sq "github.com/Masterminds/squirrel"
@@ -103,7 +104,20 @@ func RegisterRoutes(router fiber.Router, db *pgxpool.Pool, isInitialized *bool) 
 			return api.SendError(c, api.ErrAuthInvalidCredentials, 401)
 		}
 
-		if err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(req.Password)); err != nil {
+		match, err := crypto.ComparePassword(hash, req.Password)
+		if err != nil {
+			if err.Error() == "legacy_bcrypt" {
+				if err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(req.Password)); err != nil {
+					logger.Warn("[ADMIN/AUTH] Login failed: legacy password mismatch for %s", id)
+					return api.SendError(c, api.ErrAuthInvalidCredentials, 401)
+				}
+
+				logger.Info("[ADMIN/AUTH] Legacy bcrypt login successful for %s", id)
+			} else {
+				logger.Error("[ADMIN/AUTH] Password comparison error: %v", err)
+				return api.SendError(c, api.ErrAuthInvalidCredentials, 401)
+			}
+		} else if !match {
 			logger.Warn("[ADMIN/AUTH] Login failed: password mismatch for %s", id)
 			return api.SendError(c, api.ErrAuthInvalidCredentials, 401)
 		}
@@ -178,7 +192,7 @@ func RegisterRoutes(router fiber.Router, db *pgxpool.Pool, isInitialized *bool) 
 			return api.SendError(c, api.ErrAuthInvalidFields, 400)
 		}
 
-		hash, err := bcrypt.GenerateFromPassword([]byte(req.Password), 12)
+		hash, err := crypto.HashPassword(req.Password)
 		if err != nil {
 			logger.Error("[ADMIN/AUTH] Password hashing failed: %v", err)
 			return api.SendError(c, api.ErrCoreInternalServer, 500)
@@ -369,12 +383,12 @@ func RegisterRoutes(router fiber.Router, db *pgxpool.Pool, isInitialized *bool) 
 			builder = builder.Set(database.SQLTableAdminsEmail, req.Email)
 		}
 		if req.Password != "" {
-			hash, err := bcrypt.GenerateFromPassword([]byte(req.Password), 12)
+			hash, err := crypto.HashPassword(req.Password)
 			if err != nil {
 				logger.Error("[ADMIN/AUTH] Update password hashing failed: %v", err)
 				return api.SendError(c, api.ErrCoreInternalServer, 500)
 			}
-			builder = builder.Set(database.SQLTableAdminsPasswordHash, string(hash))
+			builder = builder.Set(database.SQLTableAdminsPasswordHash, hash)
 		}
 
 		sql, args, err := builder.ToSql()
