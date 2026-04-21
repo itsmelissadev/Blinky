@@ -154,25 +154,6 @@ export function AppSidebar() {
           </SidebarMenu>
         </SidebarGroup>
 
-        <SidebarGroup className="mt-auto">
-          <SidebarGroupContent>
-            <SidebarMenu>
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild>
-                  <div className="px-2 py-4">
-                    <div className="flex items-center gap-2 mb-1">
-                      <Cloud className="size-4 text-primary" />
-                      <span className="text-xs font-semibold">Cloud Sync</span>
-                    </div>
-                    <p className="text-xs text-muted-foreground leading-snug">
-                      Your database is being backed up to the blinky cloud.
-                    </p>
-                  </div>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
       </SidebarContent>
 
       <SidebarFooter>

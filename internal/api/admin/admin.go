@@ -11,6 +11,7 @@ import (
 	"blinky/internal/panel"
 	"context"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -93,21 +94,23 @@ func NewAdminApp(db *pgxpool.Pool, cfg *config.Config) *fiber.App {
 
 	system.RegisterFileRoutes(apiGroup)
 
-	app.Use("/", filesystem.New(filesystem.Config{
-		Root:       http.FS(panel.Assets),
-		PathPrefix: "dist",
-		Browse:     false,
-		Index:      "index.html",
-	}))
+	if os.Getenv("GO_ENV") != "development" {
+		app.Use("/", filesystem.New(filesystem.Config{
+			Root:       http.FS(panel.Assets),
+			PathPrefix: "dist",
+			Browse:     false,
+			Index:      "index.html",
+		}))
 
-	app.Get("/*", func(c *fiber.Ctx) error {
-		file, err := panel.Assets.ReadFile("dist/index.html")
-		if err != nil {
-			return c.Status(http.StatusNotFound).SendString("Resource not found")
-		}
-		c.Set(fiber.HeaderContentType, fiber.MIMETextHTML)
-		return c.Send(file)
-	})
+		app.Get("/*", func(c *fiber.Ctx) error {
+			file, err := panel.Assets.ReadFile("dist/index.html")
+			if err != nil {
+				return c.Status(http.StatusNotFound).SendString("Resource not found")
+			}
+			c.Set(fiber.HeaderContentType, fiber.MIMETextHTML)
+			return c.Send(file)
+		})
+	}
 
 	return app
 }

@@ -6,6 +6,11 @@ import path from "path";
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, path.resolve(__dirname, "../../"), "");
+
+  const adminHost = env.ADMIN_PANEL_HOST && env.ADMIN_PANEL_HOST !== "0.0.0.0" ? env.ADMIN_PANEL_HOST : "[IP_ADDRESS]";
+  const adminPort = env.ADMIN_PANEL_PORT || "8080";
+  const adminTarget = `http://${adminHost}:${adminPort}`;
+
   return {
     plugins: [react(), tailwindcss()],
     envDir: "../../",
@@ -22,8 +27,9 @@ export default defineConfig(({ mode }) => {
       },
       proxy: {
         "/_api": {
-          target: `http://localhost:${env.ADMIN_PANEL_PORT || "8080"}`,
+          target: adminTarget,
           changeOrigin: true,
+          secure: false,
         },
       },
     },

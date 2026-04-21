@@ -4,11 +4,24 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, Save, RefreshCw, Server, AlertTriangle, ShieldCheck, AlertCircle, Lock, Shield } from "lucide-react";
+import {
+  Loader2,
+  Save,
+  RefreshCw,
+  Server,
+  AlertTriangle,
+  ShieldCheck,
+  AlertCircle,
+  Lock,
+  Shield,
+  Eye,
+  EyeOff,
+} from "lucide-react";
 import { toast } from "sonner";
 import { fetchAPI } from "@/lib/api-client";
 import { Switch } from "@/components/ui/switch";
 import { PageLoader } from "@/components/global/widget/loader";
+import { InputPassword } from "@/components/ui/input-password";
 
 export default function ServerSettingsPage() {
   const [isLoading, setIsLoading] = useState(true);
@@ -330,7 +343,7 @@ export default function ServerSettingsPage() {
                 </Label>
                 <p className="text-xs text-muted-foreground">Secure port for tunnel access.</p>
               </div>
-              <Input
+              <InputPassword
                 id="sshPort"
                 value={config.sshPort}
                 onChange={(e) => setConfig({ ...config, sshPort: e.target.value })}
@@ -345,7 +358,7 @@ export default function ServerSettingsPage() {
                 </Label>
                 <p className="text-xs text-muted-foreground">System user for tunnel login.</p>
               </div>
-              <Input
+              <InputPassword
                 id="sshUser"
                 value={config.sshUser}
                 onChange={(e) => setConfig({ ...config, sshUser: e.target.value })}
@@ -361,9 +374,8 @@ export default function ServerSettingsPage() {
                   </Label>
                   <p className="text-xs text-muted-foreground">Encryption key for the tunnel gateway.</p>
                 </div>
-                <Input
+                <InputPassword
                   id="sshPass"
-                  type="password"
                   value={config.sshPassword}
                   onChange={(e) => setConfig({ ...config, sshPassword: e.target.value })}
                   placeholder="••••••••"
@@ -421,7 +433,7 @@ export default function ServerSettingsPage() {
                   ) : (
                     <>
                       <Shield className="mr-2 h-4 w-4" />
-                      Verify & Unlock SSH Toggles
+                      Verify & Unlock SSH
                     </>
                   )}
                 </Button>

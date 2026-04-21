@@ -35,7 +35,7 @@ const ConfigFieldRow = ({ field, sIndex, fIndex, onUpdate, onToggle, onPickPath 
   }, [field.value]);
 
   return (
-    <div className="group flex flex-col md:flex-row md:items-center justify-between gap-4 py-4 border-b border-border/40 last:border-0 hover:bg-muted/5 transition-colors px-1">
+    <div className="group flex flex-col px-4 md:flex-row md:items-center justify-between gap-4 py-4 border-b border-border/40 last:border-0 hover:bg-muted/5 transition-colors px-1">
       <div className="flex items-start gap-4 flex-1">
         <div className="pt-1">
           <Switch checked={!field.is_commented} onCheckedChange={(checked) => onToggle(sIndex, fIndex, checked)} />
