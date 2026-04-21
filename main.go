@@ -9,9 +9,11 @@ import (
 	"syscall"
 	"time"
 
+	"blinky/internal"
 	"blinky/internal/api/admin"
 	"blinky/internal/api/admin/collections"
 	"blinky/internal/api/admin/system"
+	"blinky/internal/api/admin/settings"
 	"blinky/internal/api/public"
 	"blinky/internal/config"
 	"blinky/internal/database"
@@ -34,7 +36,7 @@ func main() {
 	flag.Parse()
 
 	logger.Init(*debug)
-	logger.Info("[ENGINE] Blinky starting...")
+	logger.Info("[ENGINE] %s %s (Code: %d) starting...", internal.AppName, internal.AppVersionName, internal.AppVersionCode)
 
 	cfg := config.LoadConfig()
 
@@ -50,8 +52,8 @@ func main() {
 			os.Exit(1)
 		}
 
-		if err := database.InitSystemTables(ctx, dbPool); err != nil {
-			logger.Error("[ENGINE] Fatal: System table initialization failed: %v", err)
+		if err := database.Migrate(ctx, dbPool, cfg, settings.CreateBackup); err != nil {
+			logger.Error("[ENGINE] Fatal: Database migration failed: %v", err)
 			os.Exit(1)
 		}
 

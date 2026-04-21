@@ -70,6 +70,10 @@ func Coalesce(col, fallback string) string {
 	return NewStatement(FuncCoalesce).Add(SQLOpenParen + col + SQLComma + SQLSpace + fallback + SQLCloseParen).String()
 }
 
+func Max(col string) string {
+	return NewStatement(FuncMax).Add(SQLOpenParen + col + SQLCloseParen).String()
+}
+
 func Cast(val, targetType string) string {
 	return val + SQLCast + targetType
 }

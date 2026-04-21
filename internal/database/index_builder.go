@@ -5,10 +5,11 @@ import (
 )
 
 type IndexBuilder struct {
-	tableName string
-	name      string
-	columns   []string
-	isUnique  bool
+	tableName    string
+	name         string
+	columns      []string
+	isUnique     bool
+	isConcurrent bool
 }
 
 func NewIndex(tableName string, columns ...string) *IndexBuilder {
@@ -20,6 +21,11 @@ func NewIndex(tableName string, columns ...string) *IndexBuilder {
 
 func (b *IndexBuilder) Unique() *IndexBuilder {
 	b.isUnique = true
+	return b
+}
+
+func (b *IndexBuilder) Concurrently() *IndexBuilder {
+	b.isConcurrent = true
 	return b
 }
 
@@ -44,8 +50,13 @@ func (b *IndexBuilder) Build() string {
 		Wrap(SQLOpenParen, SQLCloseParen).
 		String()
 
-	return NewStatement(cmd).
-		Space().
+	stmt := NewStatement(cmd)
+
+	if b.isConcurrent {
+		stmt.Space().Add("CONCURRENTLY")
+	}
+
+	return stmt.Space().
 		Add(SQLQuote+idxName+SQLQuote).
 		Space().
 		Add(SQLOn).
@@ -61,8 +72,14 @@ func (b *IndexBuilder) BuildDrop() string {
 	if idxName == "" {
 		idxName = NewStatement(PrefixIndex, b.tableName, strings.Join(b.columns, SQLUnderscore)).Join(SQLUnderscore)
 	}
-	return NewStatement(SQLDropIndex).
-		Space().
+
+	stmt := NewStatement(SQLDropIndex)
+
+	if b.isConcurrent {
+		stmt.Space().Add("CONCURRENTLY")
+	}
+
+	return stmt.Space().
 		Add(SQLQuote+idxName+SQLQuote).
 		String() + SQLSemicolon
 }

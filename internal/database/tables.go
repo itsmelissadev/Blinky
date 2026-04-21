@@ -17,3 +17,22 @@ func GetAdminsTableSQL() string {
 		AddColumn(NewColumn(SQLTableAdminsID).Varchar(255).PrimaryKey().Build()).
 		Build()
 }
+
+func GetMigrationsTableSQL() string {
+	return NewTable(SQLTableMigrations).
+		AddColumn(NewColumn(SQLTableMigrationsID).Varchar(255).PrimaryKey().Build()).
+		AddColumn(NewColumn(SQLTableMigrationsVersion).Integer().NotNull().Build()).
+		AddColumn(NewColumn(SQLTableMigrationsAppliedAt).Timestamp().NotNull().Default(SQLNow).Build()).
+		Build()
+}
+
+func GetMigrationLogsTableSQL() string {
+	return NewTable(SQLTableMigrationLogs).
+		AddColumn(NewColumn(SQLTableMigrationLogsID).Varchar(255).PrimaryKey().Build()).
+		AddColumn(NewColumn(SQLTableMigrationLogsVersion).Integer().NotNull().Build()).
+		AddColumn(NewColumn(SQLTableMigrationLogsStatus).Varchar(50).NotNull().Build()).
+		AddColumn(NewColumn(SQLTableMigrationLogsMessage).Text().Build()).
+		AddColumn(NewColumn(SQLTableMigrationLogsDuration).BigInt().Build()).
+		AddColumn(NewColumn(SQLTableMigrationLogsCreatedAt).Timestamp().NotNull().Default(SQLNow).Build()).
+		Build()
+}

@@ -77,6 +77,7 @@ const (
 	FuncCountAll   = "COUNT(*)"
 	FuncCount      = "COUNT"
 	FuncCoalesce   = "COALESCE"
+	FuncMax        = "MAX"
 )
 
 const (
@@ -103,6 +104,13 @@ const (
 )
 
 const (
+	SQLTableMigrations          = "_migrations"
+	SQLTableMigrationsID        = "id"
+	SQLTableMigrationsVersion   = "version"
+	SQLTableMigrationsAppliedAt = "applied_at"
+)
+
+const (
 	SQLTableAdmins             = "_admins"
 	SQLTableAdminsID           = "id"
 	SQLTableAdminsNickname     = "nickname"
@@ -113,6 +121,16 @@ const (
 	SQLTableAdminsToken        = "token"
 	SQLTableAdminsCreatedAt    = "created_at"
 	SQLTableAdminsUpdatedAt    = "updated_at"
+)
+
+const (
+	SQLTableMigrationLogs          = "_migration_logs"
+	SQLTableMigrationLogsID        = "id"
+	SQLTableMigrationLogsVersion   = "version"
+	SQLTableMigrationLogsStatus    = "status"
+	SQLTableMigrationLogsMessage   = "message"
+	SQLTableMigrationLogsDuration  = "duration_ms"
+	SQLTableMigrationLogsCreatedAt = "created_at"
 )
 
 const (

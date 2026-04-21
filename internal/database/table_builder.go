@@ -111,6 +111,19 @@ func (a *AlterTableBuilder) AddColumn(col string) *AlterTableBuilder {
 	return a
 }
 
+func (a *AlterTableBuilder) SafeAddColumn(colName string, colBuilder *ColumnBuilder, defaultValue interface{}) *AlterTableBuilder {
+	originalNullable := colBuilder.nullable
+	colBuilder.nullable = true
+	a.AddColumn(colBuilder.Build())
+
+	a.SetDefault(colName, defaultValue)
+
+	if !originalNullable {
+		a.SetNotNull(colName)
+	}
+	return a
+}
+
 func (a *AlterTableBuilder) DropColumn(name string) *AlterTableBuilder {
 	a.ops = append(a.ops, NewStatement(OpDropColumn).Space().Add(SQLQuote+name+SQLQuote).String())
 	return a

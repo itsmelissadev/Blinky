@@ -66,9 +66,22 @@ func (h *backupHandler) list(c *fiber.Ctx) error {
 }
 
 func (h *backupHandler) create(c *fiber.Ctx) error {
+	filename, err := CreateBackup(h.cfg)
+	if err != nil {
+		logger.Error("[SETTINGS/BACKUP] Backup failed: %v", err)
+		return api.SendError(c, api.ErrBackupPgDumpFailed)
+	}
+
+	logger.Success("[SETTINGS/BACKUP] Backup created successfully: %s", filename)
+	return api.Success(c, fiber.Map{
+		"message":  api.SuccessBackupCreated.Message,
+		"filename": filename,
+	})
+}
+
+func CreateBackup(cfg *config.Config) (string, error) {
 	if err := os.MkdirAll(BackupDir, 0755); err != nil {
-		logger.Error("[SETTINGS/BACKUP] Failed to create backup directory: %v", err)
-		return api.SendError(c, api.ErrBackupDirCreateFailed)
+		return "", err
 	}
 
 	timestamp := time.Now().Format("20060102_150405")
@@ -77,36 +90,28 @@ func (h *backupHandler) create(c *fiber.Ctx) error {
 	zipFileName := fmt.Sprintf("backup_%s.zip", timestamp)
 	zipFile := filepath.Join(BackupDir, zipFileName)
 
-	pgDumpPath := getPgDumpPath(h.cfg)
+	pgDumpPath := getPgDumpPath(cfg)
 
 	cmd := exec.Command(pgDumpPath,
-		"-h", h.cfg.DBHost,
-		"-p", h.cfg.DBPort,
-		"-U", h.cfg.DBUser,
+		"-h", cfg.DBHost,
+		"-p", cfg.DBPort,
+		"-U", cfg.DBUser,
 		"-f", sqlFile,
-		h.cfg.DBName,
+		cfg.DBName,
 	)
 
-	cmd.Env = append(os.Environ(), fmt.Sprintf("PGPASSWORD=%s", h.cfg.DBPass))
+	cmd.Env = append(os.Environ(), fmt.Sprintf("PGPASSWORD=%s", cfg.DBPass))
 
 	if output, err := cmd.CombinedOutput(); err != nil {
-		logger.Error("[SETTINGS/BACKUP] pg_dump failed: %v, Output: %s", err, string(output))
-		return api.SendError(c, api.ErrBackupPgDumpFailed.WithReplacements(map[string]string{
-			"command": pgDumpPath,
-		}))
+		return "", fmt.Errorf("pg_dump failed: %v, Output: %s", err, string(output))
 	}
 	defer os.Remove(sqlFile)
 
 	if err := zipFiles(zipFile, []string{sqlFile}); err != nil {
-		logger.Error("[SETTINGS/BACKUP] Failed to zip backup: %v", err)
-		return api.SendError(c, api.ErrBackupZipFailed)
+		return "", err
 	}
 
-	logger.Success("[SETTINGS/BACKUP] Backup created successfully: %s", zipFile)
-	return api.Success(c, fiber.Map{
-		"message":  api.SuccessBackupCreated.Message,
-		"filename": zipFileName,
-	})
+	return zipFileName, nil
 }
 
 func getPgDumpPath(cfg *config.Config) string {
