@@ -48,21 +48,15 @@ func (t *TableBuilder) AddForeignKey(column, refTable, refColumn, onDelete strin
 	constraintName := NewStatement(PrefixForeignKey, t.name, column).Join(SQLUnderscore)
 
 	fk := NewStatement(SQLConstraint).
-		Space().
-		Add(SQLQuote + constraintName + SQLQuote).
-		Space().
+		Add(Quote(constraintName)).
 		Add(SQLForeignKey).
-		Space().
-		Add(NewStatement(column).Wrap(SQLQuote, SQLQuote).Wrap(SQLOpenParen, SQLCloseParen).String()).
-		Space().
+		Add(NewStatement(Quote(column)).Wrap(SQLOpenParen, SQLCloseParen).String()).
 		Add(SQLReferences).
-		Space().
-		Add(SQLQuote + refTable + SQLQuote).
-		Space().
-		Add(NewStatement(refColumn).Wrap(SQLQuote, SQLQuote).Wrap(SQLOpenParen, SQLCloseParen).String())
+		Add(Quote(refTable)).
+		Add(NewStatement(Quote(refColumn)).Wrap(SQLOpenParen, SQLCloseParen).String())
 
 	if onDelete != "" {
-		fk.Space().Add(SQLOnDelete).Space().Add(onDelete)
+		fk.Add(SQLOnDelete).Add(onDelete)
 	}
 	t.constraints = append(t.constraints, fk.String())
 	return t
@@ -81,9 +75,7 @@ func (t *TableBuilder) Build() string {
 		String()
 
 	sql := NewStatement(SQLCreateTable).
-		Space().
-		Add(SQLQuote + t.name + SQLQuote).
-		Space().
+		Add(Quote(t.name)).
 		Add(body).
 		String()
 
@@ -107,7 +99,7 @@ func AlterTable(name string) *AlterTableBuilder {
 }
 
 func (a *AlterTableBuilder) AddColumn(col string) *AlterTableBuilder {
-	a.ops = append(a.ops, NewStatement(OpAddColumn).Space().Add(col).String())
+	a.ops = append(a.ops, NewStatement(OpAddColumn).Add(col).String())
 	return a
 }
 
@@ -125,22 +117,22 @@ func (a *AlterTableBuilder) SafeAddColumn(colName string, colBuilder *ColumnBuil
 }
 
 func (a *AlterTableBuilder) DropColumn(name string) *AlterTableBuilder {
-	a.ops = append(a.ops, NewStatement(OpDropColumn).Space().Add(SQLQuote+name+SQLQuote).String())
+	a.ops = append(a.ops, NewStatement(OpDropColumn).Add(Quote(name)).String())
 	return a
 }
 
 func (a *AlterTableBuilder) RenameColumn(oldName, newName string) *AlterTableBuilder {
-	a.ops = append(a.ops, NewStatement(OpRenameColumn).Space().Add(SQLQuote+oldName+SQLQuote).Space().Add(SQLTo).Space().Add(SQLQuote+newName+SQLQuote).String())
+	a.ops = append(a.ops, NewStatement(OpRenameColumn).Add(Quote(oldName)).Add(SQLTo).Add(Quote(newName)).String())
 	return a
 }
 
 func (a *AlterTableBuilder) RenameTo(newName string) *AlterTableBuilder {
-	a.ops = append(a.ops, NewStatement(OpRenameTo).Space().Add(SQLQuote+newName+SQLQuote).String())
+	a.ops = append(a.ops, NewStatement(OpRenameTo).Add(Quote(newName)).String())
 	return a
 }
 
 func (a *AlterTableBuilder) AlterColumn(col, operation string) *AlterTableBuilder {
-	a.ops = append(a.ops, NewStatement(OpAlterColumn).Space().Add(SQLQuote+col+SQLQuote).Space().Add(operation).String())
+	a.ops = append(a.ops, NewStatement(OpAlterColumn).Add(Quote(col)).Add(operation).String())
 	return a
 }
 
@@ -168,10 +160,10 @@ func (a *AlterTableBuilder) SetDefault(col string, val interface{}) *AlterTableB
 		switch v := val.(type) {
 		case string:
 			upperV := strings.ToUpper(v)
-			if v == SQLNow || v == "now()" || upperV == SQLNull || strings.Contains(v, "(") || strings.Contains(v, "::") {
+			if v == SQLNow || upperV == SQLNull || strings.Contains(v, SQLOpenParen) || strings.Contains(v, SQLCast) {
 				defaultVal = v
 			} else {
-				defaultVal = SQLSingleQuote + strings.ReplaceAll(v, SQLSingleQuote, "''") + SQLSingleQuote
+				defaultVal = SQLSingleQuote + strings.ReplaceAll(v, SQLSingleQuote, SQLSingleQuote+SQLSingleQuote) + SQLSingleQuote
 			}
 		case bool:
 			if v {
@@ -181,7 +173,7 @@ func (a *AlterTableBuilder) SetDefault(col string, val interface{}) *AlterTableB
 			}
 		case map[string]interface{}, []interface{}:
 			jsonData, _ := json.Marshal(v)
-			defaultVal = SQLSingleQuote + strings.ReplaceAll(string(jsonData), SQLSingleQuote, SQLEmptyString) + SQLSingleQuote + SQLCast + TypeJSONB
+			defaultVal = SQLSingleQuote + strings.ReplaceAll(string(jsonData), SQLSingleQuote, SQLSingleQuote+SQLSingleQuote) + SQLSingleQuote + SQLCast + TypeJSONB
 		default:
 			defaultVal = ToVal(v)
 		}
@@ -214,28 +206,22 @@ func (a *AlterTableBuilder) AddConstraint(cb *ConstraintBuilder) *AlterTableBuil
 }
 
 func (a *AlterTableBuilder) DropConstraint(name string) *AlterTableBuilder {
-	a.ops = append(a.ops, NewStatement(OpDropConstraint).Space().Add(SQLQuote+name+SQLQuote).String())
+	a.ops = append(a.ops, NewStatement(OpDropConstraint).Add(Quote(name)).String())
 	return a
 }
 
 func (a *AlterTableBuilder) AddForeignKey(column, refTable, refColumn, onDelete string) *AlterTableBuilder {
 	constraintName := NewStatement(PrefixForeignKey, a.name, column).Join(SQLUnderscore)
 	fk := NewStatement(OpAddConstraint).
-		Space().
-		Add(NewStatement(SQLConstraint).Space().Add(SQLQuote + constraintName + SQLQuote).String()).
-		Space().
+		Add(NewStatement(SQLConstraint).Add(Quote(constraintName)).String()).
 		Add(SQLForeignKey).
-		Space().
-		Add(NewStatement(column).Wrap(SQLQuote, SQLQuote).Wrap(SQLOpenParen, SQLCloseParen).String()).
-		Space().
+		Add(NewStatement(Quote(column)).Wrap(SQLOpenParen, SQLCloseParen).String()).
 		Add(SQLReferences).
-		Space().
-		Add(SQLQuote + refTable + SQLQuote).
-		Space().
-		Add(NewStatement(refColumn).Wrap(SQLQuote, SQLQuote).Wrap(SQLOpenParen, SQLCloseParen).String())
+		Add(Quote(refTable)).
+		Add(NewStatement(Quote(refColumn)).Wrap(SQLOpenParen, SQLCloseParen).String())
 
 	if onDelete != "" {
-		fk.Space().Add(SQLOnDelete).Space().Add(onDelete)
+		fk.Add(SQLOnDelete).Add(onDelete)
 	}
 	a.ops = append(a.ops, fk.String())
 	return a
@@ -243,7 +229,7 @@ func (a *AlterTableBuilder) AddForeignKey(column, refTable, refColumn, onDelete 
 
 func (a *AlterTableBuilder) DropForeignKey(column string) *AlterTableBuilder {
 	constraintName := NewStatement(PrefixForeignKey, a.name, column).Join(SQLUnderscore)
-	a.ops = append(a.ops, NewStatement(OpDropConstraint).Space().Add(SQLQuote+constraintName+SQLQuote).String())
+	a.ops = append(a.ops, NewStatement(OpDropConstraint).Add(Quote(constraintName)).String())
 	return a
 }
 
@@ -255,9 +241,7 @@ func (a *AlterTableBuilder) Build() string {
 
 	if len(a.ops) > 0 {
 		alterPart := NewStatement(SQLAlterTable).
-			Space().
-			Add(SQLQuote + a.name + SQLQuote).
-			Space().
+			Add(Quote(a.name)).
 			Add(strings.Join(a.ops, SQLComma+SQLSpace)).
 			String()
 		stmt.Add(alterPart + SQLSemicolon)

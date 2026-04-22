@@ -35,10 +35,6 @@ func (s *Statement) AddInt(val int) *Statement {
 	return s.Add(strconv.Itoa(val))
 }
 
-func (s *Statement) Space() *Statement {
-	return s
-}
-
 func (s *Statement) Newline() *Statement {
 	return s.Add(SQLNewline)
 }

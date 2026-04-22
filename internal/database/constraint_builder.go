@@ -20,10 +20,8 @@ func (b *ConstraintBuilder) Check(expression string) *ConstraintBuilder {
 
 func (b *ConstraintBuilder) MinLength(column string, min int) *ConstraintBuilder {
 	b.check = NewStatement(FuncCharLength).
-		Add(NewStatement(column).Wrap(SQLQuote, SQLQuote).Wrap(SQLOpenParen, SQLCloseParen).String()).
-		Space().
+		Add(NewStatement(Quote(column)).Wrap(SQLOpenParen, SQLCloseParen).String()).
 		Add(SQLGte).
-		Space().
 		Add(NewStatement().AddInt(min).String()).
 		String()
 	return b
@@ -31,32 +29,24 @@ func (b *ConstraintBuilder) MinLength(column string, min int) *ConstraintBuilder
 
 func (b *ConstraintBuilder) MaxLength(column string, max int) *ConstraintBuilder {
 	b.check = NewStatement(FuncCharLength).
-		Add(NewStatement(column).Wrap(SQLQuote, SQLQuote).Wrap(SQLOpenParen, SQLCloseParen).String()).
-		Space().
+		Add(NewStatement(Quote(column)).Wrap(SQLOpenParen, SQLCloseParen).String()).
 		Add(SQLLte).
-		Space().
 		Add(NewStatement().AddInt(max).String()).
 		String()
 	return b
 }
 
 func (b *ConstraintBuilder) MinValue(column string, min interface{}) *ConstraintBuilder {
-	b.check = NewStatement(column).
-		Wrap(SQLQuote, SQLQuote).
-		Space().
+	b.check = NewStatement(Quote(column)).
 		Add(SQLGte).
-		Space().
 		Add(ToVal(min)).
 		String()
 	return b
 }
 
 func (b *ConstraintBuilder) MaxValue(column string, max interface{}) *ConstraintBuilder {
-	b.check = NewStatement(column).
-		Wrap(SQLQuote, SQLQuote).
-		Space().
+	b.check = NewStatement(Quote(column)).
 		Add(SQLLte).
-		Space().
 		Add(ToVal(max)).
 		String()
 	return b
@@ -68,29 +58,22 @@ func (b *ConstraintBuilder) HasBody() bool {
 
 func (b *ConstraintBuilder) Build() string {
 	return NewStatement(SQLConstraint).
-		Space().
-		Add(SQLQuote + b.name + SQLQuote).
-		Space().
+		Add(Quote(b.name)).
 		Add(SQLCheck).
-		Space().
 		Add(NewStatement(b.check).Wrap(SQLOpenParen, SQLCloseParen).String()).
 		String()
 }
 
 func (b *ConstraintBuilder) BuildAdd() string {
 	return NewStatement(OpAddConstraint).
-		Space().
-		Add(SQLQuote + b.name + SQLQuote).
-		Space().
+		Add(Quote(b.name)).
 		Add(SQLCheck).
-		Space().
 		Add(NewStatement(b.check).Wrap(SQLOpenParen, SQLCloseParen).String()).
 		String()
 }
 
 func (b *ConstraintBuilder) BuildDrop() string {
 	return NewStatement(OpDropConstraint).
-		Space().
-		Add(SQLQuote + b.name + SQLQuote).
+		Add(Quote(b.name)).
 		String()
 }

@@ -2,7 +2,6 @@ package database
 
 import (
 	"encoding/json"
-	"fmt"
 	"strings"
 )
 
@@ -60,7 +59,7 @@ func (b *ColumnBuilder) BigInt() *ColumnBuilder {
 
 func (b *ColumnBuilder) Numeric(p, s *int) *ColumnBuilder {
 	if p != nil && s != nil {
-		precisionStr := NewStatement().AddInt(*p).Add(SQLComma).Space().AddInt(*s).String()
+		precisionStr := NewStatement().AddInt(*p).Add(SQLComma).AddInt(*s).String()
 		b.dataType = NewStatement(TypeNumeric).Add(NewStatement(precisionStr).Wrap(SQLOpenParen, SQLCloseParen).String()).String()
 	} else if p != nil {
 		b.dataType = NewStatement(TypeNumeric).Add(NewStatement().AddInt(*p).Wrap(SQLOpenParen, SQLCloseParen).String()).String()
@@ -123,10 +122,10 @@ func (b *ColumnBuilder) Default(val interface{}) *ColumnBuilder {
 	switch v := val.(type) {
 	case string:
 		upperV := strings.ToUpper(v)
-		if v == SQLNow || v == "now()" || upperV == SQLNull || strings.Contains(v, "(") || strings.Contains(v, "::") {
+		if v == SQLNow || upperV == SQLNull || strings.Contains(v, SQLOpenParen) || strings.Contains(v, SQLCast) {
 			finalVal = v
 		} else {
-			finalVal = SQLSingleQuote + strings.ReplaceAll(v, SQLSingleQuote, "''") + SQLSingleQuote
+			finalVal = SQLSingleQuote + strings.ReplaceAll(v, SQLSingleQuote, SQLSingleQuote+SQLSingleQuote) + SQLSingleQuote
 		}
 	case bool:
 		if v {
@@ -136,7 +135,7 @@ func (b *ColumnBuilder) Default(val interface{}) *ColumnBuilder {
 		}
 	case map[string]interface{}, []interface{}, []string:
 		jsonData, _ := json.Marshal(v)
-		finalVal = SQLSingleQuote + strings.ReplaceAll(string(jsonData), SQLSingleQuote, "''") + SQLSingleQuote + "::JSONB"
+		finalVal = SQLSingleQuote + strings.ReplaceAll(string(jsonData), SQLSingleQuote, SQLSingleQuote+SQLSingleQuote) + SQLSingleQuote + SQLCast + TypeJSONB
 	default:
 		finalVal = ToVal(v)
 	}
@@ -159,10 +158,10 @@ var SQL = struct {
 	CharLength func(*SQLExpr) *SQLExpr
 }{
 	Col: func(col string) *SQLExpr {
-		return &SQLExpr{expr: SQLQuote + col + SQLQuote}
+		return &SQLExpr{expr: Quote(col)}
 	},
 	Trim: func(col string) *SQLExpr {
-		return &SQLExpr{expr: NewStatement(FuncTrim).Add(NewStatement(col).Wrap(SQLQuote, SQLQuote).Wrap(SQLOpenParen, SQLCloseParen).String()).String()}
+		return &SQLExpr{expr: NewStatement(FuncTrim).Add(NewStatement(Quote(col)).Wrap(SQLOpenParen, SQLCloseParen).String()).String()}
 	},
 	CharLength: func(ex *SQLExpr) *SQLExpr {
 		return &SQLExpr{expr: NewStatement(FuncCharLength).Add(NewStatement(ex.expr).Wrap(SQLOpenParen, SQLCloseParen).String()).String()}
@@ -170,10 +169,10 @@ var SQL = struct {
 }
 
 func (e *SQLExpr) Gte(val interface{}) string {
-	return NewStatement(e.expr).Space().Add(SQLGte).Space().Add(fmt.Sprintf("%v", val)).String()
+	return NewStatement(e.expr).Add(SQLGte).Add(ToVal(val)).String()
 }
 func (e *SQLExpr) Lte(val interface{}) string {
-	return NewStatement(e.expr).Space().Add(SQLLte).Space().Add(fmt.Sprintf("%v", val)).String()
+	return NewStatement(e.expr).Add(SQLLte).Add(ToVal(val)).String()
 }
 
 func (b *ColumnBuilder) Min(val interface{}) *ColumnBuilder {
@@ -198,8 +197,8 @@ func (b *ColumnBuilder) AddCheck(condition string) *ColumnBuilder {
 }
 
 func (b *ColumnBuilder) References(table, column string) *ColumnBuilder {
-	b.references = NewStatement(table).Wrap(SQLQuote, SQLQuote).
-		Add(NewStatement(column).Wrap(SQLQuote, SQLQuote).Wrap(SQLOpenParen, SQLCloseParen).String()).
+	b.references = NewStatement(Quote(table)).
+		Add(NewStatement(Quote(column)).Wrap(SQLOpenParen, SQLCloseParen).String()).
 		String()
 	return b
 }
@@ -216,41 +215,40 @@ func (b *ColumnBuilder) OnDeleteSetNull() *ColumnBuilder {
 
 func (b *ColumnBuilder) Build() string {
 	stmt := NewStatement().
-		Add(SQLQuote + b.name + SQLQuote).
-		Space().
+		Add(Quote(b.name)).
 		Add(b.dataType)
 
 	if b.primaryKey {
-		stmt.Space().Add(SQLPrimaryKey)
+		stmt.Add(SQLPrimaryKey)
 	}
 
 	if !b.nullable {
-		stmt.Space().Add(SQLNotNull)
+		stmt.Add(SQLNotNull)
 	} else if !b.primaryKey {
-		stmt.Space().Add(SQLNull)
+		stmt.Add(SQLNull)
 	}
 
 	if b.unique && !b.primaryKey {
-		stmt.Space().Add(SQLUnique)
+		stmt.Add(SQLUnique)
 	}
 
 	if b.defaultVal != "" {
-		stmt.Space().Add(SQLDefault).Space().Add(b.defaultVal)
+		stmt.Add(SQLDefault).Add(b.defaultVal)
 	}
 
 	if len(b.check) > 0 {
 		checkExpr := NewStatement(NewStatement(b.check...).JoinAnd()).
 			Wrap(SQLOpenParen, SQLCloseParen).
 			String()
-		stmt.Space().Add(SQLCheck).Space().Add(checkExpr)
+		stmt.Add(SQLCheck).Add(checkExpr)
 	}
 
 	if b.references != "" {
-		refStmt := NewStatement(SQLReferences).Space().Add(b.references)
+		refStmt := NewStatement(SQLReferences).Add(b.references)
 		if b.onDelete != "" {
-			refStmt.Space().Add(SQLOnDelete).Space().Add(b.onDelete)
+			refStmt.Add(SQLOnDelete).Add(b.onDelete)
 		}
-		stmt.Space().Add(refStmt.String())
+		stmt.Add(refStmt.String())
 	}
 
 	return stmt.String()

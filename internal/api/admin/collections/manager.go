@@ -169,7 +169,7 @@ func handleNumber(ctx context.Context, tx pgx.Tx, table string, field types.Coll
 		if err := syncCheck(ctx, tx, table, field.Name, "nozero", func(b *database.ConstraintBuilder) {
 			if opts.NoZero {
 				b.Check(database.NewStatement(database.Quote(field.Name)).
-					Space().Add(database.SQLNotEq).Space().Add(database.SQLZero).String())
+					Add(database.SQLNotEq).Add(database.SQLZero).String())
 			}
 		}); err != nil {
 			return err
@@ -270,7 +270,7 @@ func syncLifecycle(ctx context.Context, tx pgx.Tx, table string, field types.Col
 	if typeChanged {
 		using := getUsingClause(currentName, targetType)
 		alterSQL := database.AlterTable(table).AlterColumn(currentName, database.NewStatement(database.SQLType).
-			Space().Add(targetType).Space().Add(database.SQLUsing).Space().Add(using).String()).Build()
+			Add(targetType).Add(database.SQLUsing).Add(using).String()).Build()
 		if _, err := tx.Exec(ctx, alterSQL); err != nil {
 			return typeChanged, err
 		}

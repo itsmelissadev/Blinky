@@ -45,24 +45,24 @@ func (b *IndexBuilder) Build() string {
 		idxName = NewStatement(PrefixIndex, b.tableName, strings.Join(b.columns, SQLUnderscore)).Join(SQLUnderscore)
 	}
 
-	cols := NewStatement(strings.Join(b.columns, SQLQuote+SQLComma+SQLSpace+SQLQuote)).
-		Wrap(SQLQuote, SQLQuote).
+	var quotedCols []string
+	for _, col := range b.columns {
+		quotedCols = append(quotedCols, Quote(col))
+	}
+	cols := NewStatement(strings.Join(quotedCols, SQLComma+SQLSpace)).
 		Wrap(SQLOpenParen, SQLCloseParen).
 		String()
 
 	stmt := NewStatement(cmd)
 
 	if b.isConcurrent {
-		stmt.Space().Add("CONCURRENTLY")
+		stmt.Add("CONCURRENTLY")
 	}
 
-	return stmt.Space().
-		Add(SQLQuote+idxName+SQLQuote).
-		Space().
+	return stmt.
+		Add(Quote(idxName)).
 		Add(SQLOn).
-		Space().
-		Add(SQLQuote+b.tableName+SQLQuote).
-		Space().
+		Add(Quote(b.tableName)).
 		Add(cols).
 		String() + SQLSemicolon
 }
@@ -76,10 +76,10 @@ func (b *IndexBuilder) BuildDrop() string {
 	stmt := NewStatement(SQLDropIndex)
 
 	if b.isConcurrent {
-		stmt.Space().Add("CONCURRENTLY")
+		stmt.Add("CONCURRENTLY")
 	}
 
-	return stmt.Space().
-		Add(SQLQuote+idxName+SQLQuote).
+	return stmt.
+		Add(Quote(idxName)).
 		String() + SQLSemicolon
 }
