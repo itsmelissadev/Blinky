@@ -45,10 +45,12 @@ export async function fetchAPI<T = any>(endpoint: string, options: RequestInit =
 
     const data: APIResponse<T> = await response.json();
 
-    if (response.status === 401 && !endpoint.includes("/login") && !endpoint.includes("/initialized")) {
-      if (typeof window !== "undefined" && window.location.pathname !== "/login") {
-        window.location.href = "/login";
-      }
+    if (
+      response.status === 401 &&
+      !endpoint.includes("/login") &&
+      !endpoint.includes("/initialized") &&
+      !endpoint.includes("/me")
+    ) {
       throw new Error("Unauthorized");
     }
 
@@ -71,7 +73,8 @@ export async function fetchAPI<T = any>(endpoint: string, options: RequestInit =
 }
 
 export function getAPIUrl(endpoint: string) {
-  return `${API_URL}${endpoint.startsWith("/") ? endpoint : `/${endpoint}`}`;
+  const normalizedEndpoint = endpoint.startsWith("/") ? endpoint : `/${endpoint}`;
+  return `${API_URL}/_api${normalizedEndpoint}`;
 }
 
 const logger = {

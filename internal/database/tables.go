@@ -15,6 +15,14 @@ func GetCollectionsTableSQL() string {
 func GetAdminsTableSQL() string {
 	return NewTable(SQLTableAdmins).
 		AddColumn(NewColumn(SQLTableAdminsID).Varchar(255).PrimaryKey().Build()).
+		AddColumn(NewColumn(SQLTableAdminsNickname).Varchar(255).NotNull().Build()).
+		AddColumn(NewColumn(SQLTableAdminsUsername).Varchar(255).NotNull().Unique().Build()).
+		AddColumn(NewColumn(SQLTableAdminsEmail).Varchar(255).NotNull().Unique().Build()).
+		AddColumn(NewColumn(SQLTableAdminsPasswordHash).Varchar(255).NotNull().Build()).
+		AddColumn(NewColumn(SQLTableAdminsAvatar).Varchar(255).Build()).
+		AddColumn(NewColumn(SQLTableAdminsToken).Varchar(255).Build()).
+		AddColumn(NewColumn(SQLTableAdminsCreatedAt).Timestamp().NotNull().Default(SQLNow).Build()).
+		AddColumn(NewColumn(SQLTableAdminsUpdatedAt).Timestamp().NotNull().Default(SQLNow).Build()).
 		Build()
 }
 

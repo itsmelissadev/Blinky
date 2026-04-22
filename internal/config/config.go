@@ -8,24 +8,23 @@ import (
 )
 
 type Config struct {
-	DBHost           string
-	DBPort           string
-	DBUser           string
-	DBPass           string
-	DBName           string
-	DBConnString     string
-	PublicAPIHost    string
-	PublicAPIPort    string
-	AdminPanelHost   string
-	AdminPanelPort   string
-	PostgresPath     string
-	PostgresDataPath string
-	IsEnvExist       bool
-	AdminSSHEnabled  bool
-	PublicSSHEnabled bool
-	SSHPort          string
-	SSHUser          string
-	SSHPassword      string
+	PostgresDBHost     string
+	PostgresDBPort     string
+	PostgresDBUser     string
+	PostgresDBPassword string
+	PostgresDBName     string
+	DBConnString       string
+	PublicAPIHost      string
+	PublicAPIPort      string
+	AdminPanelHost     string
+	AdminPanelPort     string
+	IsEnvExist         bool
+	AdminSSHEnabled    bool
+	PublicSSHEnabled   bool
+	SSHPort            string
+	SSHUser            string
+	SSHPassword        string
+	Environment        string
 }
 
 func LoadConfig() *Config {
@@ -36,33 +35,37 @@ func LoadConfig() *Config {
 
 	_ = godotenv.Load()
 
-	dbHost := getEnv("DB_HOST", "localhost")
-	dbPort := getEnv("DB_PORT", "5432")
-	dbUser := getEnv("DB_USER", "postgres")
-	dbPass := getEnv("DB_PASS", "postgres")
-	dbName := getEnv("DB_NAME", "blinky_db")
+	dbHost := getEnv("POSTGRESQL_DB_HOST", "localhost")
+	dbPort := getEnv("POSTGRESQL_DB_PORT", "5432")
+	dbUser := getEnv("POSTGRESQL_DB_USER", "postgres")
+	dbPass := getEnv("POSTGRESQL_DB_PASSWORD", "postgres")
+	dbName := getEnv("POSTGRESQL_DB_NAME", "blinky_db")
 
 	return &Config{
-		DBHost:           dbHost,
-		DBPort:           dbPort,
-		DBUser:           dbUser,
-		DBPass:           dbPass,
-		DBName:           dbName,
-		DBConnString:     fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable", dbUser, dbPass, dbHost, dbPort, dbName),
-		PublicAPIHost:    getEnv("PUBLIC_API_HOST", "0.0.0.0"),
-		PublicAPIPort:    getEnv("PUBLIC_API_PORT", "8090"),
-		AdminPanelHost:   getEnv("ADMIN_PANEL_HOST", "0.0.0.0"),
-		AdminPanelPort:   getEnv("ADMIN_PANEL_PORT", "8080"),
-		PostgresPath:     getEnv("POSTGRESQL_FOLDER_PATH", ""),
-		PostgresDataPath: getEnv("POSTGRESQL_DATA_PATH", ""),
-		IsEnvExist:       isEnvExist,
+		PostgresDBHost:     dbHost,
+		PostgresDBPort:     dbPort,
+		PostgresDBUser:     dbUser,
+		PostgresDBPassword: dbPass,
+		PostgresDBName:     dbName,
+		DBConnString:       fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable", dbUser, dbPass, dbHost, dbPort, dbName),
+		PublicAPIHost:      getEnv("PUBLIC_API_HOST", "0.0.0.0"),
+		PublicAPIPort:      getEnv("PUBLIC_API_PORT", "8090"),
+		AdminPanelHost:     getEnv("ADMIN_PANEL_HOST", "0.0.0.0"),
+		AdminPanelPort:     getEnv("ADMIN_PANEL_PORT", "8080"),
+		IsEnvExist:         isEnvExist,
 
 		AdminSSHEnabled:  getEnv("ADMIN_SSH_ENABLED", "false") == "true",
 		PublicSSHEnabled: getEnv("PUBLIC_SSH_ENABLED", "false") == "true",
 		SSHPort:          getEnv("SSH_PORT", ""),
 		SSHUser:          getEnv("SSH_USER", ""),
 		SSHPassword:      getEnv("SSH_PASS", ""),
+		Environment:      getEnv("GO_ENV", "development"),
 	}
+}
+
+func (c *Config) UpdateDBConnString() {
+	c.DBConnString = fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
+		c.PostgresDBUser, c.PostgresDBPassword, c.PostgresDBHost, c.PostgresDBPort, c.PostgresDBName)
 }
 
 func UpdateEnvVariables(updates map[string]string) error {

@@ -7,7 +7,7 @@ import path from "path";
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, path.resolve(__dirname, "../../"), "");
 
-  const adminHost = env.ADMIN_PANEL_HOST && env.ADMIN_PANEL_HOST !== "0.0.0.0" ? env.ADMIN_PANEL_HOST : "[IP_ADDRESS]";
+  const adminHost = env.ADMIN_PANEL_HOST && env.ADMIN_PANEL_HOST !== "0.0.0.0" ? env.ADMIN_PANEL_HOST : "localhost";
   const adminPort = env.ADMIN_PANEL_PORT || "8080";
   const adminTarget = `http://${adminHost}:${adminPort}`;
 

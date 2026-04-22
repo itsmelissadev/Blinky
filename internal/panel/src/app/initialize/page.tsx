@@ -4,9 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { FolderOpen } from "lucide-react";
-import { DirectoryPickerSheet } from "@/components/global/directory-picker";
-import { getPostgresPathPlaceholder, getPostgresDataPlaceholder } from "@/lib/utils";
+import { Database } from "lucide-react";
 import { toast } from "sonner";
 import { fetchAPI } from "@/lib/api-client";
 import { useAuth } from "@/components/auth-guard";
@@ -17,12 +15,7 @@ export default function SetupPage() {
   const [step, setStep] = useState(isEnvExist === false ? 1 : 2);
   const navigate = useNavigate();
 
-  const [pickerOpen, setPickerOpen] = useState(false);
-  const [pickerTarget, setPickerTarget] = useState<"folder" | "data" | null>(null);
-
   const [dbData, setDbData] = useState({
-    POSTGRESQL_FOLDER_PATH: "",
-    POSTGRESQL_DATA_PATH: "",
     POSTGRESQL_DB_HOST: "localhost",
     POSTGRESQL_DB_PORT: "5432",
     POSTGRESQL_DB_USER: "postgres",
@@ -115,7 +108,7 @@ export default function SetupPage() {
         <CardHeader className="space-y-1">
           <CardTitle className="text-2xl text-center">{step === 1 ? "Database Setup" : "Create Admin"}</CardTitle>
           <CardDescription className="text-center">
-            {step === 1 ? "Connect Blinky to your PostgreSQL instance" : "Create the primary administrator account"}
+            {step === 1 ? "Configure your managed PostgreSQL instance" : "Create the primary administrator account"}
           </CardDescription>
         </CardHeader>
 
@@ -128,23 +121,13 @@ export default function SetupPage() {
             }}
           >
             <CardContent className="grid gap-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="db-host">Host</Label>
-                  <Input
-                    id="db-host"
-                    value={dbData.POSTGRESQL_DB_HOST}
-                    onChange={(e) => setDbData({ ...dbData, POSTGRESQL_DB_HOST: e.target.value })}
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="db-port">Port</Label>
-                  <Input
-                    id="db-port"
-                    value={dbData.POSTGRESQL_DB_PORT}
-                    onChange={(e) => setDbData({ ...dbData, POSTGRESQL_DB_PORT: e.target.value })}
-                  />
-                </div>
+              <div className="grid gap-2">
+                <Label htmlFor="db-port">Port</Label>
+                <Input
+                  id="db-port"
+                  value={dbData.POSTGRESQL_DB_PORT}
+                  onChange={(e) => setDbData({ ...dbData, POSTGRESQL_DB_PORT: e.target.value })}
+                />
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="db-name">Database Name</Label>
@@ -171,52 +154,6 @@ export default function SetupPage() {
                     value={dbData.POSTGRESQL_DB_PASSWORD}
                     onChange={(e) => setDbData({ ...dbData, POSTGRESQL_DB_PASSWORD: e.target.value })}
                   />
-                </div>
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="pg-folder">PostgreSQL Folder Path</Label>
-                <div className="flex gap-2">
-                  <Input
-                    id="pg-folder"
-                    required
-                    placeholder={getPostgresPathPlaceholder()}
-                    value={dbData.POSTGRESQL_FOLDER_PATH}
-                    onChange={(e) => setDbData({ ...dbData, POSTGRESQL_FOLDER_PATH: e.target.value })}
-                  />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="icon"
-                    onClick={() => {
-                      setPickerTarget("folder");
-                      setPickerOpen(true);
-                    }}
-                  >
-                    <FolderOpen className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="pg-data">Data Path</Label>
-                <div className="flex gap-2">
-                  <Input
-                    id="pg-data"
-                    required
-                    placeholder={getPostgresDataPlaceholder()}
-                    value={dbData.POSTGRESQL_DATA_PATH}
-                    onChange={(e) => setDbData({ ...dbData, POSTGRESQL_DATA_PATH: e.target.value })}
-                  />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="icon"
-                    onClick={() => {
-                      setPickerTarget("data");
-                      setPickerOpen(true);
-                    }}
-                  >
-                    <FolderOpen className="h-4 w-4" />
-                  </Button>
                 </div>
               </div>
             </CardContent>
@@ -287,27 +224,6 @@ export default function SetupPage() {
           </form>
         )}
       </Card>
-
-      {step === 1 && (
-        <DirectoryPickerSheet
-          open={pickerOpen}
-          onOpenChange={setPickerOpen}
-          initialPath={
-            pickerTarget === "folder"
-              ? dbData.POSTGRESQL_FOLDER_PATH
-              : pickerTarget === "data"
-                ? dbData.POSTGRESQL_DATA_PATH
-                : ""
-          }
-          onSelect={(path) => {
-            if (pickerTarget === "folder") {
-              setDbData({ ...dbData, POSTGRESQL_FOLDER_PATH: path });
-            } else if (pickerTarget === "data") {
-              setDbData({ ...dbData, POSTGRESQL_DATA_PATH: path });
-            }
-          }}
-        />
-      )}
     </div>
   );
 }

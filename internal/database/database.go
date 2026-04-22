@@ -23,19 +23,19 @@ func Connect(ctx context.Context, cfg *config.Config) (*pgxpool.Pool, error) {
 
 	err = pool.Ping(ctx)
 	if err == nil {
-		logger.Success("[DATABASE/CONNECTION] Verified connection to %s", cfg.DBName)
+		logger.Success("[DATABASE/CONNECTION] Verified connection to %s", cfg.PostgresDBName)
 		return pool, nil
 	}
 
 	var pgErr *pgconn.PgError
 	if errors.As(err, &pgErr) && pgErr.Code == "3D000" {
-		if !AskForApproval(fmt.Sprintf("Database '%s' does not exist. Create it? (y/N): ", cfg.DBName)) {
+		if !AskForApproval(fmt.Sprintf("Database '%s' does not exist. Create it? (y/N): ", cfg.PostgresDBName)) {
 			return nil, fmt.Errorf("database creation aborted by user")
 		}
 
 		pool.Close()
 		defaultConnString := fmt.Sprintf("postgres://%s:%s@%s:%s/postgres?sslmode=disable",
-			cfg.DBUser, cfg.DBPass, cfg.DBHost, cfg.DBPort)
+			cfg.PostgresDBUser, cfg.PostgresDBPassword, cfg.PostgresDBHost, cfg.PostgresDBPort)
 
 		defaultPool, err := pgxpool.New(ctx, defaultConnString)
 		if err != nil {
@@ -43,13 +43,13 @@ func Connect(ctx context.Context, cfg *config.Config) (*pgxpool.Pool, error) {
 		}
 		defer defaultPool.Close()
 
-		sql := NewStatement(SQLCreateDatabase).Add(Quote(cfg.DBName)).String()
+		sql := NewStatement(SQLCreateDatabase).Add(Quote(cfg.PostgresDBName)).String()
 
 		_, err = defaultPool.Exec(ctx, sql)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create database: %w", err)
 		}
-		logger.Success("[DATABASE/CREATE] Database '%s' created successfully", cfg.DBName)
+		logger.Success("[DATABASE/CREATE] Database '%s' created successfully", cfg.PostgresDBName)
 
 		return pgxpool.New(ctx, cfg.DBConnString)
 	}

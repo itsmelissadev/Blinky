@@ -41,7 +41,7 @@ func browse(c *fiber.Ctx) error {
 
 	entries, err := os.ReadDir(pathutil.FromSlash(path))
 	if err != nil {
-		return api.SendError(c, api.ErrBackupBrowseFailed)
+		return api.SendError(c, api.ErrBackupBrowseFailed, 500)
 	}
 
 	var dirs []string

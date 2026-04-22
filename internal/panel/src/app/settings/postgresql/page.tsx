@@ -143,8 +143,6 @@ export default function PostgresSettingsPage() {
     user: "",
     password: "",
     database: "",
-    postgresPath: "",
-    postgresDataPath: "",
   });
 
   // Conf File
@@ -281,13 +279,6 @@ export default function PostgresSettingsPage() {
   };
 
   const handleSave = async () => {
-    if (!config.postgresPath || !config.postgresDataPath) {
-      toast.error("Required Fields Missing", {
-        description: "PostgreSQL Root Path and Data Path are mandatory.",
-      });
-      return;
-    }
-
     setIsSaving(true);
     try {
       const res = await fetchAPI("/settings/postgresql", {
@@ -399,53 +390,7 @@ export default function PostgresSettingsPage() {
               />
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-6 border-t font-mono">
-              <div className="space-y-3">
-                <div className="space-y-1">
-                  <Label className="text-base">PostgreSQL Root Path</Label>
-                  <p className="text-xs text-muted-foreground">
-                    Installation directory where binary tools (/bin) reside.
-                  </p>
-                </div>
-                <div className="relative">
-                  <Input
-                    value={config.postgresPath}
-                    onChange={(e) => setConfig({ ...config, postgresPath: e.target.value })}
-                    placeholder={getPostgresPathPlaceholder()}
-                    className="pr-10 text-xs h-9"
-                  />
-                  <button
-                    onClick={() => setPickerTarget("root")}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    <Folder className="h-3.5 w-3.5" />
-                  </button>
-                </div>
-              </div>
 
-              <div className="space-y-3">
-                <div className="space-y-1">
-                  <Label className="text-base">PostgreSQL Data Path</Label>
-                  <p className="text-xs text-muted-foreground">
-                    Variable directory where configuration and databases are stored.
-                  </p>
-                </div>
-                <div className="relative">
-                  <Input
-                    value={config.postgresDataPath}
-                    onChange={(e) => setConfig({ ...config, postgresDataPath: e.target.value })}
-                    placeholder={getPostgresPathPlaceholder()}
-                    className="pr-10 text-xs h-9"
-                  />
-                  <button
-                    onClick={() => setPickerTarget("data")}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    <Folder className="h-3.5 w-3.5" />
-                  </button>
-                </div>
-              </div>
-            </div>
 
             <div className="flex flex-col sm:flex-row gap-3 pt-6 border-t">
               <Button variant="outline" onClick={handleTestConnection} disabled={isTesting}>
@@ -518,21 +463,15 @@ export default function PostgresSettingsPage() {
         open={pickerTarget !== null}
         onOpenChange={(open) => !open && setPickerTarget(null)}
         onSelect={(path) => {
-          if (pickerTarget === "root") setConfig({ ...config, postgresPath: path });
-          else if (pickerTarget === "data") setConfig({ ...config, postgresDataPath: path });
-          else if (typeof pickerTarget === "object" && pickerTarget !== null) {
+          if (typeof pickerTarget === "object" && pickerTarget !== null) {
             handleUpdateConfField(pickerTarget.s, pickerTarget.f, path);
           }
           setPickerTarget(null);
         }}
         initialPath={
-          pickerTarget === "root"
-            ? config.postgresPath
-            : pickerTarget === "data"
-              ? config.postgresDataPath
-              : typeof pickerTarget === "object" && pickerTarget !== null
-                ? sections[pickerTarget.s].fields[pickerTarget.f].value
-                : undefined
+          typeof pickerTarget === "object" && pickerTarget !== null
+            ? sections[pickerTarget.s].fields[pickerTarget.f].value
+            : undefined
         }
       />
     </div>

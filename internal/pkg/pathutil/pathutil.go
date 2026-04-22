@@ -1,10 +1,19 @@
 package pathutil
 
 import (
+	"blinky/internal"
 	"os"
 	"path/filepath"
 	"strings"
 )
+
+func GetPostgresPath() string {
+	return Join("system", "postgresql", internal.AppPostgresVersion)
+}
+
+func GetPostgresDataPath() string {
+	return Join("system", "postgresql", internal.AppPostgresVersion, "data")
+}
 
 func Normalize(path string) string {
 	if path == "" {
@@ -55,11 +64,11 @@ func GetParent(path string) string {
 	return parent
 }
 
-func Join(base string, elem string) string {
-	if base == "" {
-		return elem
+func Join(elem ...string) string {
+	for i, e := range elem {
+		elem[i] = filepath.FromSlash(e)
 	}
-	return filepath.ToSlash(filepath.Join(filepath.FromSlash(base), elem))
+	return filepath.ToSlash(filepath.Join(elem...))
 }
 
 func FromSlash(path string) string {

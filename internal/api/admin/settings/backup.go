@@ -6,11 +6,13 @@ import (
 	"blinky/internal/config"
 	"blinky/internal/pkg/logger"
 	"blinky/internal/pkg/pathutil"
+	"compress/flate"
 	"fmt"
 	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"time"
 
@@ -35,7 +37,7 @@ func (h *backupHandler) list(c *fiber.Ctx) error {
 	files, err := os.ReadDir(BackupDir)
 	if err != nil {
 		logger.Error("[SETTINGS/BACKUP] Failed to read backup directory: %v", err)
-		return api.SendError(c, api.ErrBackupDirReadFailed)
+		return api.SendError(c, api.ErrBackupDirReadFailed, 500)
 	}
 
 	backups := []BackupInfo{}
@@ -69,7 +71,7 @@ func (h *backupHandler) create(c *fiber.Ctx) error {
 	filename, err := CreateBackup(h.cfg)
 	if err != nil {
 		logger.Error("[SETTINGS/BACKUP] Backup failed: %v", err)
-		return api.SendError(c, api.ErrBackupPgDumpFailed)
+		return api.SendError(c, api.ErrBackupPgDumpFailed, 500)
 	}
 
 	logger.Success("[SETTINGS/BACKUP] Backup created successfully: %s", filename)
@@ -90,17 +92,17 @@ func CreateBackup(cfg *config.Config) (string, error) {
 	zipFileName := fmt.Sprintf("backup_%s.zip", timestamp)
 	zipFile := filepath.Join(BackupDir, zipFileName)
 
-	pgDumpPath := getPgDumpPath(cfg)
+	pgDumpPath := getPgDumpPath()
 
 	cmd := exec.Command(pgDumpPath,
-		"-h", cfg.DBHost,
-		"-p", cfg.DBPort,
-		"-U", cfg.DBUser,
+		"-h", cfg.PostgresDBHost,
+		"-p", cfg.PostgresDBPort,
+		"-U", cfg.PostgresDBUser,
 		"-f", sqlFile,
-		cfg.DBName,
+		cfg.PostgresDBName,
 	)
 
-	cmd.Env = append(os.Environ(), fmt.Sprintf("PGPASSWORD=%s", cfg.DBPass))
+	cmd.Env = append(os.Environ(), fmt.Sprintf("PGPASSWORD=%s", cfg.PostgresDBPassword))
 
 	if output, err := cmd.CombinedOutput(); err != nil {
 		return "", fmt.Errorf("pg_dump failed: %v, Output: %s", err, string(output))
@@ -114,17 +116,14 @@ func CreateBackup(cfg *config.Config) (string, error) {
 	return zipFileName, nil
 }
 
-func getPgDumpPath(cfg *config.Config) string {
-	if cfg.PostgresPath != "" {
-		binFolder := pathutil.Join(cfg.PostgresPath, "bin")
-		p := pathutil.Join(binFolder, "pg_dump.exe")
-		if _, err := os.Stat(p); err == nil {
-			return p
-		}
-		p = pathutil.Join(binFolder, "pg_dump")
-		if _, err := os.Stat(p); err == nil {
-			return p
-		}
+func getPgDumpPath() string {
+	binName := "pg_dump"
+	if runtime.GOOS == "windows" {
+		binName += ".exe"
+	}
+	p := pathutil.Join(pathutil.GetPostgresPath(), "bin", binName)
+	if _, err := os.Stat(p); err == nil {
+		return p
 	}
 
 	if path, err := exec.LookPath("pg_dump"); err == nil {
@@ -137,21 +136,21 @@ func getPgDumpPath(cfg *config.Config) string {
 func (h *backupHandler) delete(c *fiber.Ctx) error {
 	filename := c.Params("filename")
 	if filename == "" {
-		return api.SendError(c, api.ErrBackupMissingFilename)
+		return api.SendError(c, api.ErrBackupMissingFilename, 400)
 	}
 
 	if filepath.Ext(filename) != ".zip" || filepath.Base(filename) != filename {
-		return api.SendError(c, api.ErrBackupInvalidFilename)
+		return api.SendError(c, api.ErrBackupInvalidFilename, 400)
 	}
 
 	filePath := filepath.Join(BackupDir, filename)
 	if _, err := os.Stat(filePath); os.IsNotExist(err) {
-		return api.SendError(c, api.ErrBackupNotFound)
+		return api.SendError(c, api.ErrBackupNotFound, 404)
 	}
 
 	if err := os.Remove(filePath); err != nil {
 		logger.Error("[SETTINGS/BACKUP] Failed to delete backup file %s: %v", filename, err)
-		return api.SendError(c, api.ErrBackupDeleteFailed)
+		return api.SendError(c, api.ErrBackupDeleteFailed, 500)
 	}
 
 	logger.Info("[SETTINGS/BACKUP] Backup deleted: %s", filename)
@@ -161,40 +160,22 @@ func (h *backupHandler) delete(c *fiber.Ctx) error {
 func (h *backupHandler) download(c *fiber.Ctx) error {
 	filename := c.Params("filename")
 	if filepath.Ext(filename) != ".zip" || filepath.Base(filename) != filename {
-		return api.SendError(c, api.ErrBackupInvalidFilename)
+		return api.SendError(c, api.ErrBackupInvalidFilename, 400)
 	}
 
 	filePath := filepath.Join(BackupDir, filename)
 	if _, err := os.Stat(filePath); os.IsNotExist(err) {
-		return api.SendError(c, api.ErrBackupNotFound)
+		return api.SendError(c, api.ErrBackupNotFound, 404)
 	}
 
 	return c.Download(filePath)
 }
 
 func (h *backupHandler) getConfig(c *fiber.Ctx) error {
-	return api.Success(c, fiber.Map{
-		"postgresPath": h.cfg.PostgresPath,
-	})
+	return api.Success(c, fiber.Map{})
 }
 
 func (h *backupHandler) updateConfig(c *fiber.Ctx) error {
-	var body struct {
-		PostgresPath string `json:"postgresPath"`
-	}
-
-	if err := c.BodyParser(&body); err != nil {
-		return api.SendError(c, api.ErrCoreInvalidBody)
-	}
-
-	h.cfg.PostgresPath = body.PostgresPath
-
-	if err := updateEnvVariable("POSTGRESQL_FOLDER_PATH", body.PostgresPath); err != nil {
-		logger.Error("[SETTINGS/BACKUP] Failed to update .env: %v", err)
-		return api.SendError(c, api.ErrEnvUpdateFailed)
-	}
-
-	logger.Success("[SETTINGS/BACKUP] Backup configuration updated")
 	return api.Success(c, api.SuccessConfigUpdated)
 }
 
@@ -207,6 +188,10 @@ func zipFiles(filename string, files []string) error {
 
 	zipWriter := zip.NewWriter(newZipFile)
 	defer zipWriter.Close()
+
+	zipWriter.RegisterCompressor(zip.Deflate, func(out io.Writer) (io.WriteCloser, error) {
+		return flate.NewWriter(out, flate.BestCompression)
+	})
 
 	for _, file := range files {
 		if err := addFileToZip(zipWriter, file); err != nil {

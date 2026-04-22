@@ -11,7 +11,6 @@ import (
 	"blinky/internal/panel"
 	"context"
 	"net/http"
-	"os"
 	"strings"
 	"time"
 
@@ -90,11 +89,12 @@ func NewAdminApp(db *pgxpool.Pool, cfg *config.Config) *fiber.App {
 		collections.RegisterRoutes(apiGroup, db)
 		settings.RegisterRoutes(apiGroup, db, cfg)
 		system.RegisterRoutes(apiGroup, db, cfg)
+		system.RegisterSQLRoutes(apiGroup.Group("/system"), db)
 	}
 
 	system.RegisterFileRoutes(apiGroup)
 
-	if os.Getenv("GO_ENV") != "development" {
+	if cfg.Environment != "development" {
 		app.Use("/", filesystem.New(filesystem.Config{
 			Root:       http.FS(panel.Assets),
 			PathPrefix: "dist",

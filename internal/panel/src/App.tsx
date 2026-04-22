@@ -21,6 +21,7 @@ import EnvironmentsPage from "./app/settings/environments/page";
 import PostgresSettingsPage from "./app/settings/postgresql/page";
 import ServerSettingsPage from "./app/settings/server/page";
 import SetupPage from "./app/initialize/page";
+import SQLQueryPage from "./app/sql-query/page";
 
 function AuthenticatedLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -71,6 +72,7 @@ function PageRouter() {
           <Route path="/settings/environments" element={<EnvironmentsPage />} />
           <Route path="/settings/postgresql" element={<PostgresSettingsPage />} />
           <Route path="/settings/server" element={<ServerSettingsPage />} />
+          <Route path="/sql-query" element={<SQLQueryPage />} />
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </AuthenticatedLayout>

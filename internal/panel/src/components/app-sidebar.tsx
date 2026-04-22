@@ -1,5 +1,18 @@
 import { Link, useLocation } from "react-router-dom";
-import { Database, Settings, Users, LayoutDashboard, Cpu, ChevronDown, LogOut, User, Bell, Cloud, Terminal, Server } from "lucide-react";
+import {
+  Database,
+  Settings,
+  Users,
+  LayoutDashboard,
+  Cpu,
+  ChevronDown,
+  LogOut,
+  User,
+  Bell,
+  Cloud,
+  Terminal,
+  Server,
+} from "lucide-react";
 
 import {
   Sidebar,
@@ -43,6 +56,11 @@ const mainNav = [
     title: "Admins",
     url: "/admins",
     icon: Users,
+  },
+  {
+    title: "SQL Query",
+    url: "/sql-query",
+    icon: Terminal,
   },
   {
     title: "Settings",
@@ -101,7 +119,7 @@ export function AppSidebar() {
                 </div>
                 <div className="flex flex-col gap-0.5 leading-none">
                   <span className="font-semibold">Blinky</span>
-                  <span className="text-xs text-muted-foreground">0.1.0-alpha</span>
+                  <span className="text-xs text-muted-foreground">0.1.1-alpha</span>
                 </div>
               </Link>
             </SidebarMenuButton>
@@ -153,7 +171,6 @@ export function AppSidebar() {
             )}
           </SidebarMenu>
         </SidebarGroup>
-
       </SidebarContent>
 
       <SidebarFooter>

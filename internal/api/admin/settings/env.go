@@ -19,7 +19,7 @@ func (h *backupHandler) getEnv(c *fiber.Ctx) error {
 	content, err := os.ReadFile(".env")
 	if err != nil {
 		logger.Error("[SETTINGS/ENV] Failed to read .env: %v", err)
-		return api.SendError(c, api.ErrEnvReadFailed)
+		return api.SendError(c, api.ErrEnvReadFailed, 500)
 	}
 
 	lines := strings.Split(string(content), "\n")
@@ -33,7 +33,7 @@ func (h *backupHandler) getEnv(c *fiber.Ctx) error {
 		if len(parts) == 2 {
 			vars = append(vars, EnvVar{
 				Key:   parts[0],
-				Value: parts[1],
+				Value: strings.Trim(parts[1], "\"'"),
 			})
 		}
 	}
@@ -48,11 +48,11 @@ func (h *backupHandler) updateEnv(c *fiber.Ctx) error {
 		Value  string `json:"value"`
 	}
 	if err := c.BodyParser(&body); err != nil {
-		return api.SendError(c, api.ErrCoreInvalidBody)
+		return api.SendError(c, api.ErrCoreInvalidBody, 400)
 	}
 
 	if body.Key == "" {
-		return api.SendError(c, api.ErrEnvMissingKey)
+		return api.SendError(c, api.ErrEnvMissingKey, 400)
 	}
 
 	updates := map[string]string{body.Key: body.Value}
@@ -62,7 +62,7 @@ func (h *backupHandler) updateEnv(c *fiber.Ctx) error {
 
 	if err := updateEnvVariables(updates); err != nil {
 		logger.Error("[SETTINGS/ENV] Failed to update env variable %s: %v", body.Key, err)
-		return api.SendError(c, api.ErrEnvUpdateFailed)
+		return api.SendError(c, api.ErrEnvUpdateFailed, 500)
 	}
 
 	logger.Info("[SETTINGS/ENV] Environment variable updated: %s (was %s)", body.Key, body.OldKey)
@@ -74,7 +74,7 @@ func (h *backupHandler) deleteEnv(c *fiber.Ctx) error {
 		Keys []string `json:"keys"`
 	}
 	if err := c.BodyParser(&body); err != nil {
-		return api.SendError(c, api.ErrCoreInvalidBody)
+		return api.SendError(c, api.ErrCoreInvalidBody, 400)
 	}
 
 	if len(body.Keys) == 0 {
@@ -83,7 +83,7 @@ func (h *backupHandler) deleteEnv(c *fiber.Ctx) error {
 
 	if err := deleteEnvVariables(body.Keys); err != nil {
 		logger.Error("[SETTINGS/ENV] Failed to delete env variables: %v", err)
-		return api.SendError(c, api.ErrEnvDeleteFailed)
+		return api.SendError(c, api.ErrEnvDeleteFailed, 500)
 	}
 
 	logger.Info("[SETTINGS/ENV] Deleted %d environment variables", len(body.Keys))

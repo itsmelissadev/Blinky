@@ -46,7 +46,7 @@ func (h *backupHandler) updateServerConfig(c *fiber.Ctx) error {
 
 	if err := c.BodyParser(&body); err != nil {
 		logger.Error("[ADMIN/SETTINGS] Failed to parse request body: %v", err)
-		return api.SendError(c, api.ErrCoreInvalidBody)
+		return api.SendError(c, api.ErrCoreInvalidBody, 400)
 	}
 
 	logger.Info("[ADMIN/SETTINGS] Updating environment variables...")
@@ -64,7 +64,7 @@ func (h *backupHandler) updateServerConfig(c *fiber.Ctx) error {
 
 	if err := config.UpdateEnvVariables(updates); err != nil {
 		logger.Error("[ADMIN/SETTINGS] Environment update failed: %v", err)
-		return api.SendError(c, api.ErrEnvUpdateFailed)
+		return api.SendError(c, api.ErrEnvUpdateFailed, 500)
 	}
 
 	logger.Info("[ADMIN/SETTINGS] Synchronizing in-memory configuration...")
@@ -91,14 +91,14 @@ func (h *backupHandler) testSSHConfig(c *fiber.Ctx) error {
 
 	if err := c.BodyParser(&body); err != nil {
 		logger.Error("[ADMIN/SETTINGS/SSH] Failed to parse SSH test body")
-		return api.SendError(c, api.ErrCoreInvalidBody)
+		return api.SendError(c, api.ErrCoreInvalidBody, 400)
 	}
 
 	logger.Info("[ADMIN/SETTINGS/SSH] Attempting to listen on port %s", body.SSHPort)
 	ln, err := net.Listen("tcp", ":"+body.SSHPort)
 	if err != nil {
 		logger.Error("[ADMIN/SETTINGS/SSH] Port %s is unavailable: %v", body.SSHPort, err)
-		return api.SendError(c, api.ErrServerPortInUse)
+		return api.SendError(c, api.ErrServerPortInUse, 409)
 	}
 	ln.Close()
 

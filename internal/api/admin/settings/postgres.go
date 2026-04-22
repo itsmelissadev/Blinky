@@ -4,11 +4,11 @@ import (
 	"blinky/internal/api"
 	"blinky/internal/config"
 	"blinky/internal/pkg/logger"
+	"blinky/internal/pkg/pathutil"
 	"blinky/internal/pkg/postgresql"
 	"context"
 	"fmt"
 	"os"
-	"path/filepath"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -17,13 +17,11 @@ import (
 
 func (h *backupHandler) getPostgresConfig(c *fiber.Ctx) error {
 	return api.Success(c, fiber.Map{
-		"host":             h.cfg.DBHost,
-		"port":             h.cfg.DBPort,
-		"user":             h.cfg.DBUser,
-		"password":         h.cfg.DBPass,
-		"database":         h.cfg.DBName,
-		"postgresPath":     h.cfg.PostgresPath,
-		"postgresDataPath": h.cfg.PostgresDataPath,
+		"host":     h.cfg.PostgresDBHost,
+		"port":     h.cfg.PostgresDBPort,
+		"user":     h.cfg.PostgresDBUser,
+		"password": h.cfg.PostgresDBPassword,
+		"database": h.cfg.PostgresDBName,
 	})
 }
 
@@ -37,7 +35,7 @@ func (h *backupHandler) testPostgresConnection(c *fiber.Ctx) error {
 	}
 
 	if err := c.BodyParser(&body); err != nil {
-		return api.SendError(c, api.ErrCoreInvalidBody)
+		return api.SendError(c, api.ErrCoreInvalidBody, 400)
 	}
 
 	val := api.NewValidator()
@@ -46,7 +44,7 @@ func (h *backupHandler) testPostgresConnection(c *fiber.Ctx) error {
 	val.Required("user", body.User)
 	val.Required("database", body.Database)
 	if val.HasErrors() {
-		return api.SendError(c, api.ErrCoreInvalidBody)
+		return api.SendError(c, api.ErrCoreInvalidBody, 400)
 	}
 
 	connString := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
@@ -59,14 +57,14 @@ func (h *backupHandler) testPostgresConnection(c *fiber.Ctx) error {
 	if err != nil {
 		return api.SendError(c, api.ErrCoreInternalServer.WithReplacements(map[string]string{
 			"error": err.Error(),
-		}))
+		}), 500)
 	}
 	defer pool.Close()
 
 	if err := pool.Ping(ctx); err != nil {
 		return api.SendError(c, api.ErrCoreInternalServer.WithReplacements(map[string]string{
 			"error": fmt.Sprintf("Ping failed: %v", err),
-		}))
+		}), 500)
 	}
 
 	logger.Success("[SETTINGS/POSTGRES] Connection test successful for %s:%s", body.Host, body.Port)
@@ -75,17 +73,15 @@ func (h *backupHandler) testPostgresConnection(c *fiber.Ctx) error {
 
 func (h *backupHandler) updatePostgresConfig(c *fiber.Ctx) error {
 	var body struct {
-		Host             string `json:"host"`
-		Port             string `json:"port"`
-		User             string `json:"user"`
-		Password         string `json:"password"`
-		Database         string `json:"database"`
-		PostgresPath     string `json:"postgresPath"`
-		PostgresDataPath string `json:"postgresDataPath"`
+		Host     string `json:"host"`
+		Port     string `json:"port"`
+		User     string `json:"user"`
+		Password string `json:"password"`
+		Database string `json:"database"`
 	}
 
 	if err := c.BodyParser(&body); err != nil {
-		return api.SendError(c, api.ErrCoreInvalidBody)
+		return api.SendError(c, api.ErrCoreInvalidBody, 400)
 	}
 
 	v := api.NewValidator()
@@ -93,10 +89,8 @@ func (h *backupHandler) updatePostgresConfig(c *fiber.Ctx) error {
 	v.Required("port", body.Port)
 	v.Required("user", body.User)
 	v.Required("database", body.Database)
-	v.Required("postgresPath", body.PostgresPath)
-	v.Required("postgresDataPath", body.PostgresDataPath)
 	if v.HasErrors() {
-		return api.SendError(c, api.ErrCoreInvalidBody)
+		return api.SendError(c, api.ErrCoreInvalidBody, 400)
 	}
 
 	updates := map[string]string{
@@ -105,74 +99,43 @@ func (h *backupHandler) updatePostgresConfig(c *fiber.Ctx) error {
 		"POSTGRESQL_DB_USER":     body.User,
 		"POSTGRESQL_DB_PASSWORD": body.Password,
 		"POSTGRESQL_DB_NAME":     body.Database,
-		"POSTGRESQL_FOLDER_PATH": body.PostgresPath,
-		"POSTGRESQL_DATA_PATH":   body.PostgresDataPath,
 	}
 
 	if err := config.UpdateEnvVariables(updates); err != nil {
 		logger.Error("[SETTINGS/POSTGRES] Failed to update env variables: %v", err)
-		return api.SendError(c, api.ErrEnvUpdateFailed)
+		return api.SendError(c, api.ErrEnvUpdateFailed, 500)
 	}
 
-	h.cfg.DBHost = body.Host
-	h.cfg.DBPort = body.Port
-	h.cfg.DBUser = body.User
-	h.cfg.DBPass = body.Password
-	h.cfg.DBName = body.Database
-	h.cfg.PostgresPath = body.PostgresPath
-	h.cfg.PostgresDataPath = body.PostgresDataPath
-	h.cfg.DBConnString = fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
-		body.User, body.Password, body.Host, body.Port, body.Database)
+	h.cfg.PostgresDBHost = body.Host
+	h.cfg.PostgresDBPort = body.Port
+	h.cfg.PostgresDBUser = body.User
+	h.cfg.PostgresDBPassword = body.Password
+	h.cfg.PostgresDBName = body.Database
+	h.cfg.UpdateDBConnString()
 
 	logger.Success("[SETTINGS/POSTGRES] PostgreSQL configuration updated")
 	return api.Success(c, api.SuccessPostgresConfigUpdated)
 }
 
 func (h *backupHandler) findPostgresConf() (string, error) {
-	if h.cfg.PostgresPath == "" {
-		return "", fmt.Errorf("PostgresPath root is not configured")
+	path := pathutil.Join(pathutil.GetPostgresDataPath(), "postgresql.conf")
+	if _, err := os.Stat(path); err == nil {
+		return path, nil
 	}
-
-	var possiblePaths []string
-	if h.cfg.PostgresDataPath != "" {
-		possiblePaths = append(possiblePaths, filepath.Join(h.cfg.PostgresDataPath, "postgresql.conf"))
-	}
-
-	possiblePaths = append(possiblePaths,
-		filepath.Join(h.cfg.PostgresPath, "postgresql.conf"),
-		filepath.Join(h.cfg.PostgresPath, "data", "postgresql.conf"),
-	)
-
-	for _, p := range possiblePaths {
-		if _, err := os.Stat(p); err == nil {
-			return p, nil
-		}
-	}
-
-	entries, _ := os.ReadDir(h.cfg.PostgresPath)
-	for _, entry := range entries {
-		if entry.IsDir() && (entry.Name() == "data" || entry.Name() == "16" || entry.Name() == "15" || entry.Name() == "17" || entry.Name() == "18") {
-			p := filepath.Join(h.cfg.PostgresPath, entry.Name(), "postgresql.conf")
-			if _, err := os.Stat(p); err == nil {
-				return p, nil
-			}
-		}
-	}
-
-	return "", fmt.Errorf("postgresql.conf not found in the specified root path")
+	return "", fmt.Errorf("postgresql.conf not found at %s", path)
 }
 
 func (h *backupHandler) getPostgresConf(c *fiber.Ctx) error {
 	confPath, err := h.findPostgresConf()
 	if err != nil {
 		logger.Warn("[SETTINGS/POSTGRES] postgresql.conf not found")
-		return api.SendError(c, api.ErrPostgresConfNotFound)
+		return api.SendError(c, api.ErrPostgresConfNotFound, 404)
 	}
 
 	content, err := os.ReadFile(confPath)
 	if err != nil {
 		logger.Error("[SETTINGS/POSTGRES] Failed to read postgresql.conf: %v", err)
-		return api.SendError(c, api.ErrCoreInternalServer)
+		return api.SendError(c, api.ErrCoreInternalServer, 500)
 	}
 
 	sections := postgresql.ParseConf(string(content))
@@ -189,19 +152,19 @@ func (h *backupHandler) updatePostgresConf(c *fiber.Ctx) error {
 	}
 
 	if err := c.BodyParser(&body); err != nil {
-		return api.SendError(c, api.ErrCoreInvalidBody)
+		return api.SendError(c, api.ErrCoreInvalidBody, 400)
 	}
 
 	content := postgresql.GenerateConf(body.Sections)
 
 	confPath, err := h.findPostgresConf()
 	if err != nil {
-		return api.SendError(c, api.ErrPostgresConfNotFound)
+		return api.SendError(c, api.ErrPostgresConfNotFound, 404)
 	}
 
 	if err := os.WriteFile(confPath, []byte(content), 0644); err != nil {
 		logger.Error("[SETTINGS/POSTGRES] Failed to update postgresql.conf: %v", err)
-		return api.SendError(c, api.ErrCoreInternalServer)
+		return api.SendError(c, api.ErrCoreInternalServer, 500)
 	}
 
 	logger.Success("[SETTINGS/POSTGRES] postgresql.conf updated successfully")

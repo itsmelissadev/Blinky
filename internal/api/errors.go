@@ -69,10 +69,11 @@ var (
 	ErrBackupDeleteFailed    = ApiError{Number: 4007, Code: "BACKUP_DELETE_FAILED", Message: "Failed to delete backup file"}
 	ErrBackupBrowseFailed    = ApiError{Number: 4008, Code: "BROWSE_FAILED", Message: "Failed to read directory"}
 
-	ErrEnvReadFailed        = ApiError{Number: 5000, Code: "ENV_READ_FAILED", Message: "Failed to read .env file"}
-	ErrEnvUpdateFailed      = ApiError{Number: 5001, Code: "ENV_UPDATE_FAILED", Message: "Failed to update env variable"}
-	ErrEnvMissingKey        = ApiError{Number: 5002, Code: "ENV_MISSING_KEY", Message: "Key is required"}
-	ErrEnvDeleteFailed      = ApiError{Number: 5003, Code: "ENV_DELETE_FAILED", Message: "Failed to delete environment variables"}
-	ErrPostgresConfNotFound = ApiError{Number: 5004, Code: "POSTGRES_CONF_NOT_FOUND", Message: "postgresql.conf not found in the specified root path"}
-	ErrServerPortInUse      = ApiError{Number: 6000, Code: "SERVER_PORT_IN_USE", Message: "Specified port is already in use or restricted"}
+	ErrEnvReadFailed         = ApiError{Number: 5000, Code: "ENV_READ_FAILED", Message: "Failed to read .env file"}
+	ErrEnvUpdateFailed       = ApiError{Number: 5001, Code: "ENV_UPDATE_FAILED", Message: "Failed to update env variable"}
+	ErrEnvMissingKey         = ApiError{Number: 5002, Code: "ENV_MISSING_KEY", Message: "Key is required"}
+	ErrEnvDeleteFailed       = ApiError{Number: 5003, Code: "ENV_DELETE_FAILED", Message: "Failed to delete environment variables"}
+	ErrPostgresConfNotFound  = ApiError{Number: 5004, Code: "POSTGRES_CONF_NOT_FOUND", Message: "postgresql.conf not found in the specified root path"}
+	ErrServerPortInUse       = ApiError{Number: 6000, Code: "SERVER_PORT_IN_USE", Message: "Specified port is already in use or restricted"}
+	ErrSystemRawSqlExecution = ApiError{Number: 7000, Code: "SYSTEM_RAW_SQL_ERROR", Message: "{error}"}
 )

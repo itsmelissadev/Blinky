@@ -48,8 +48,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const initialized = initData.data?.success || false;
       setIsInitialized(initialized);
 
-      const meData = await fetchAPI("/admins/me");
-      if (meData.success) {
+      const meData = await fetchAPI("/admins/me").catch(() => ({ success: false, data: undefined }));
+      if (meData.success && meData.data) {
         setIsAuthenticated(true);
         setUser(meData.data);
       } else {
@@ -58,6 +58,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     } catch (error) {
       console.error("Auth check failed", error);
+      setIsAuthenticated(false);
     } finally {
       setIsLoading(false);
     }
