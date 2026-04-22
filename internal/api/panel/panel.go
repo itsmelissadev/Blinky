@@ -2,6 +2,7 @@ package panel
 
 import (
 	"blinky/internal/panel"
+	"io/fs"
 	"net/http"
 	"time"
 
@@ -24,11 +25,13 @@ func NewPanelApp() *fiber.App {
 		Format: "[PANEL] [${time}] ${status} - ${latency} ${method} ${path}\n",
 	}))
 
+	distFS, _ := fs.Sub(panel.Assets, "dist")
+
 	app.Use("/", filesystem.New(filesystem.Config{
-		Root:       http.FS(panel.Assets),
-		PathPrefix: "dist",
-		Browse:     false,
-		Index:      "index.html",
+		Root:         http.FS(distFS),
+		Browse:       false,
+		Index:        "index.html",
+		NotFoundFile: "index.html",
 	}))
 
 	app.Get("/*", func(c *fiber.Ctx) error {
@@ -42,3 +45,4 @@ func NewPanelApp() *fiber.App {
 
 	return app
 }
+

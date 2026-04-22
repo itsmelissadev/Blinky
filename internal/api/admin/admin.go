@@ -10,6 +10,7 @@ import (
 	"blinky/internal/database"
 	"blinky/internal/panel"
 	"context"
+	"io/fs"
 	"net/http"
 	"strings"
 	"time"
@@ -95,11 +96,16 @@ func NewAdminApp(db *pgxpool.Pool, cfg *config.Config) *fiber.App {
 	system.RegisterFileRoutes(apiGroup)
 
 	if cfg.Environment != "development" {
+		distFS, _ := fs.Sub(panel.Assets, "dist")
+
 		app.Use("/", filesystem.New(filesystem.Config{
-			Root:       http.FS(panel.Assets),
-			PathPrefix: "dist",
-			Browse:     false,
-			Index:      "index.html",
+			Root:   http.FS(distFS),
+			Browse: false,
+			Index:  "index.html",
+			Next: func(c *fiber.Ctx) bool {
+				return strings.HasPrefix(c.Path(), "/_api")
+			},
+			NotFoundFile: "index.html",
 		}))
 
 		app.Get("/*", func(c *fiber.Ctx) error {

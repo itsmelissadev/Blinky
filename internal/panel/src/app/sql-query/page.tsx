@@ -1,10 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import Editor from "react-simple-code-editor";
-import { highlight, languages } from "prismjs";
-import "prismjs/components/prism-sql";
-import "prismjs/themes/prism-tomorrow.css";
+import Editor from "@monaco-editor/react";
+import { useTheme } from "next-themes";
 import { Play, Database, Table, AlertCircle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,37 +10,22 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { fetchAPI } from "@/lib/api-client";
 import { toast } from "sonner";
 
-const editorStyles = `
-  .sql-editor {
-    font-size: 13px !important;
-    line-height: 1.5 !important;
-  }
-  .sql-editor textarea, .sql-editor pre {
-    font-family: inherit !important;
-    font-size: inherit !important;
-    line-height: inherit !important;
-    padding: 16px !important;
-    border: none !important;
-    outline: none !important;
-    white-space: pre-wrap !important;
-    word-break: break-all !important;
-    font-variant-ligatures: none !important;
-    font-feature-settings: "liga" 0 !important;
-    -webkit-font-smoothing: antialiased !important;
-    -moz-osx-font-smoothing: grayscale !important;
-    tab-size: 2 !important;
-  }
-  .sql-editor pre {
-    margin: 0 !important;
-    background: transparent !important;
-  }
-`;
-
 export default function SQLQueryPage() {
+  const { resolvedTheme } = useTheme();
   const [query, setQuery] = useState("SELECT * FROM _collections;");
   const [results, setResults] = useState<{ columns: string[]; rows: any[] } | null>(null);
   const [isExecuting, setIsExecuting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [editorHeight, setEditorHeight] = useState(200);
+
+  const handleEditorMount = (editor: any) => {
+    const updateHeight = () => {
+      const contentHeight = Math.min(Math.max(editor.getContentHeight(), 200), 600);
+      setEditorHeight(contentHeight);
+    };
+    editor.onDidContentSizeChange(updateHeight);
+    updateHeight();
+  };
 
   const handleExecute = async () => {
     if (!query.trim()) return;
@@ -71,13 +54,12 @@ export default function SQLQueryPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <style>{editorStyles}</style>
       <div className="flex flex-col gap-1">
         <h1 className="text-2xl font-bold tracking-tight">SQL Query Runner</h1>
         <p className="text-sm text-muted-foreground">Execute raw SQL commands directly against the engine.</p>
       </div>
 
-      <Card className="p-0 gap-0">
+      <Card className="p-0 gap-0 overflow-hidden border">
         <CardHeader className="flex flex-row items-center justify-between p-4! border-b">
           <div className="flex items-center gap-2">
             <Database className="h-4 w-4" />
@@ -89,12 +71,30 @@ export default function SQLQueryPage() {
           </Button>
         </CardHeader>
         <CardContent className="p-0">
-          <div className="bg-muted/20 font-mono p-0 m-0">
+          <div className="font-mono p-0 m-0 border-none transition-[height] duration-200">
             <Editor
+              height={editorHeight}
+              language="sql"
+              theme={resolvedTheme === "dark" ? "vs-dark" : "light"}
               value={query}
-              onValueChange={(code) => setQuery(code)}
-              highlight={(code) => highlight(code, languages.sql, "sql")}
-              className="sql-editor"
+              onChange={(value) => setQuery(value || "")}
+              onMount={handleEditorMount}
+              options={{
+                minimap: { enabled: false },
+                fontSize: 14,
+                padding: { top: 16, bottom: 16 },
+                scrollBeyondLastLine: false,
+                wordWrap: "on",
+                lineNumbers: "on",
+                renderLineHighlight: "all",
+                roundedSelection: false,
+                hideCursorInOverviewRuler: true,
+                scrollbar: {
+                  vertical: "hidden",
+                  handleMouseWheel: true,
+                },
+                automaticLayout: true,
+              }}
             />
           </div>
         </CardContent>
