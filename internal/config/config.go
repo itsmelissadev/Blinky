@@ -59,7 +59,7 @@ func LoadConfig() *Config {
 		SSHPort:          getEnv("SSH_PORT", ""),
 		SSHUser:          getEnv("SSH_USER", ""),
 		SSHPassword:      getEnv("SSH_PASS", ""),
-		Environment:      getEnv("GO_ENV", "development"),
+		Environment:      getEnv("GO_ENV", "production"),
 	}
 }
 
